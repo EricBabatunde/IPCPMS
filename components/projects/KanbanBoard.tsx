@@ -23,6 +23,7 @@ import { TaskStatus } from "@prisma/client"
 import { Column } from "./KanbanColumn"
 import { TaskCard } from "./TaskCard"
 import { TaskDetailSheet } from "./TaskDetailSheet"
+import { CreateTaskModal } from "./CreateTaskModal"
 
 interface Task {
   id: string
@@ -38,16 +39,17 @@ interface Task {
 }
 
 const COLUMNS = [
-  { id: "BACKLOG", title: "Backlog" },
+  { id: "TODO", title: "To Do" },
   { id: "IN_PROGRESS", title: "In Progress" },
-  { id: "REVIEW", title: "Review" },
-  { id: "COMPLETED", title: "Completed" },
+  { id: "IN_REVIEW", title: "Review" },
+  { id: "DONE", title: "Done" },
 ]
 
 export function KanbanBoard({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTaskForSheet, setSelectedTaskForSheet] = useState<Task | null>(null)
+  const [createTaskColumn, setCreateTaskColumn] = useState<string | null>(null)
 
   const { data: serverTasks = [], isLoading } = useQuery({
     queryKey: ["projects", projectId, "tasks"],
@@ -64,7 +66,9 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   // Sync server state with local state when serverTasks arrive
   useMemo(() => {
     if (serverTasks.length > 0) {
-      setTasks(serverTasks.sort((a, b) => a.position - b.position))
+      setTasks([...serverTasks].sort((a, b) => a.position - b.position))
+    } else if (serverTasks.length === 0) {
+      setTasks([])
     }
   }, [serverTasks])
 
@@ -111,27 +115,26 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
 
     // Dropping a task over another task
     if (isActiveTask && isOverTask) {
-      setTasks((tasks) => {
-        const activeIndex = tasks.findIndex((t) => t.id === activeId)
-        const overIndex = tasks.findIndex((t) => t.id === overId)
+      setTasks((prev) => {
+        const activeIndex = prev.findIndex((t) => t.id === activeId)
+        const overIndex = prev.findIndex((t) => t.id === overId)
 
-        if (tasks[activeIndex].status !== tasks[overIndex].status) {
-          // Task moved to a different column
-          const newTasks = [...tasks]
-          newTasks[activeIndex].status = tasks[overIndex].status
+        if (prev[activeIndex].status !== prev[overIndex].status) {
+          const newTasks = [...prev]
+          newTasks[activeIndex] = { ...newTasks[activeIndex], status: prev[overIndex].status }
           return arrayMove(newTasks, activeIndex, overIndex)
         }
 
-        return arrayMove(tasks, activeIndex, overIndex)
+        return arrayMove(prev, activeIndex, overIndex)
       })
     }
 
     // Dropping a task over a column directly (empty column)
     if (isActiveTask && isOverColumn) {
-      setTasks((tasks) => {
-        const activeIndex = tasks.findIndex((t) => t.id === activeId)
-        const newTasks = [...tasks]
-        newTasks[activeIndex].status = overId as TaskStatus
+      setTasks((prev) => {
+        const activeIndex = prev.findIndex((t) => t.id === activeId)
+        const newTasks = [...prev]
+        newTasks[activeIndex] = { ...newTasks[activeIndex], status: overId as TaskStatus }
         return arrayMove(newTasks, activeIndex, activeIndex)
       })
     }
@@ -148,16 +151,11 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
     if (activeId === overId) return
 
     const activeIndex = tasks.findIndex((t) => t.id === activeId)
-    const overIndex = tasks.findIndex((t) => t.id === overId)
 
-    // Calculate new position
-    // Simplest approach: if moving in same column, just re-evaluate positions for that column
-    // For production dnd-kit, using arrayMove and then spacing out positions by 1024
-    if (activeIndex !== overIndex || active.data.current?.status !== over.data.current?.status) {
-      // Find the task in the state to check its new placement
+    if (activeIndex !== -1) {
       const currentTask = tasks[activeIndex]
       const targetColumn = currentTask.status
-      
+
       const columnTasks = tasks.filter((t) => t.status === targetColumn)
       const taskIndexInColumn = columnTasks.findIndex((t) => t.id === activeId)
 
@@ -174,9 +172,6 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
         newPosition = (prevPos + nextPos) / 2
       }
 
-      // Optimistically update
-      currentTask.position = newPosition
-      
       // Sync to DB
       updateTaskMutation.mutate({
         id: currentTask.id,
@@ -204,8 +199,8 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
               key={col.id}
               column={col}
               tasks={tasks.filter((task) => task.status === col.id)}
-              projectId={projectId}
               onTaskClick={(task) => setSelectedTaskForSheet(task)}
+              onAddTask={(status) => setCreateTaskColumn(status)}
             />
           ))}
 
@@ -222,6 +217,13 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
           onOpenChange={(open) => !open && setSelectedTaskForSheet(null)}
         />
       )}
+
+      <CreateTaskModal
+        open={!!createTaskColumn}
+        onOpenChange={(open) => !open && setCreateTaskColumn(null)}
+        projectId={projectId}
+        defaultStatus={createTaskColumn || "TODO"}
+      />
     </>
   )
 }

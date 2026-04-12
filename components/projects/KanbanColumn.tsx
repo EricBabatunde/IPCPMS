@@ -10,11 +10,11 @@ import { SortableTaskCard } from "./TaskCard"
 interface ColumnProps {
   column: { id: string; title: string }
   tasks: any[] // eslint-disable-line @typescript-eslint/no-explicit-any
-  projectId: string
   onTaskClick: (task: any) => void // eslint-disable-line @typescript-eslint/no-explicit-any
+  onAddTask: (status: string) => void
 }
 
-export function Column({ column, tasks, onTaskClick }: ColumnProps) {
+export function Column({ column, tasks, onTaskClick, onAddTask }: ColumnProps) {
   const { setNodeRef } = useDroppable({
     id: column.id,
     data: {
@@ -23,7 +23,6 @@ export function Column({ column, tasks, onTaskClick }: ColumnProps) {
     },
   })
 
-  // We only want task ids for the SortableContext
   const taskIds = tasks.map((t) => t.id)
 
   return (
@@ -35,7 +34,12 @@ export function Column({ column, tasks, onTaskClick }: ColumnProps) {
             {tasks.length}
           </span>
         </div>
-        <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-50">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-50"
+          onClick={() => onAddTask(column.id)}
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>

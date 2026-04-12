@@ -77,7 +77,7 @@ export function TaskCard({ task, onClick }: TaskProps) {
             </Badge>
             {task.tags?.slice(0, 2).map((tag: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
               <Badge key={tag.id} variant="outline" className="px-1.5 py-0.5 text-[10px] leading-none">
-                {tag.name}
+                {tag.label}
               </Badge>
             ))}
           </div>
@@ -110,7 +110,7 @@ export function TaskCard({ task, onClick }: TaskProps) {
               </div>
             )}
           </div>
-          <UserAvatar user={task.assignee} className="h-6 w-6" />
+          {task.assignee && <UserAvatar user={task.assignee} className="h-6 w-6" />}
         </div>
       </CardContent>
     </Card>

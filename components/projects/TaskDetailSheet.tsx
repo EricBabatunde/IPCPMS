@@ -116,7 +116,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
             <div className="space-y-1">
               <span className="text-xs text-slate-500">Assignee</span>
               <div className="flex items-center gap-2 font-medium">
-                <UserAvatar user={task.assignee} className="h-6 w-6" />
+                {task.assignee && <UserAvatar user={task.assignee} className="h-6 w-6" />}
                 {task.assignee?.name || "Unassigned"}
               </div>
             </div>
@@ -194,6 +194,7 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
               </h3>
 
               <div className="flex gap-3">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <UserAvatar user={(session?.user as any) || null} className="h-8 w-8 mt-1" />
                 <div className="flex-1 space-y-2">
                   <Textarea 
@@ -221,10 +222,10 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
                 ) : (
                   comments.map((comment: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
                     <div key={comment.id} className="flex gap-3">
-                      <UserAvatar user={comment.user} className="h-8 w-8" />
+                      <UserAvatar user={comment.author} className="h-8 w-8" />
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm">{comment.user.name}</span>
+                          <span className="font-semibold text-sm">{comment.author.name}</span>
                           <span className="text-xs text-slate-500">{format(new Date(comment.createdAt), "MMM d 'at' h:mm a")}</span>
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-900 rounded-md p-3 text-sm text-slate-700 dark:text-slate-300">

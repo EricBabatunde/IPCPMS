@@ -1,13 +1,18 @@
 "use client"
 
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { format } from "date-fns"
-import { Clock, Check, Loader2, Calendar } from "lucide-react"
+import { Clock, Check, Loader2, Calendar, Plus } from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { CreateMilestoneModal } from "./CreateMilestoneModal"
 
 export function MilestoneList({ projectId }: { projectId: string }) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+
   const { data: milestones, isLoading } = useQuery({
     queryKey: ["projects", projectId, "milestones"],
     queryFn: async () => {
@@ -17,9 +22,10 @@ export function MilestoneList({ projectId }: { projectId: string }) {
     },
   })
 
-  // Ensure milestones handles null or empty value properly
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const total = milestones?.length || 0
-  const completed = milestones?.filter((m: any) => m.status === "ACHIEVED").length || 0 // eslint-disable-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const completed = milestones?.filter((m: any) => m.status === "ACHIEVED").length || 0
   const progress = total > 0 ? Math.round((completed / total) * 100) : 0
 
   if (isLoading) {
@@ -28,25 +34,40 @@ export function MilestoneList({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Milestone Progress</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{progress}%</div>
-            <p className="text-xs text-muted-foreground">
-              {completed} of {total} milestones achieved
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-between">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 flex-1">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Milestone Progress</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{progress}%</div>
+              <p className="text-xs text-muted-foreground">
+                {completed} of {total} milestones achieved
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+        <div className="ml-4">
+          <Button onClick={() => setIsCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Milestone
+          </Button>
+        </div>
       </div>
 
+      <CreateMilestoneModal
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        projectId={projectId}
+      />
+
       <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-4 pl-6 space-y-8 py-4">
-        {milestones?.map((milestone: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {milestones?.map((milestone: any) => {
           const isAchieved = milestone.status === "ACHIEVED"
-          const isOverdue = !isAchieved && new Date(milestone.targetDate) < new Date()
+          const isOverdue = !isAchieved && new Date(milestone.dueDate) < new Date()
           
           return (
             <div key={milestone.id} className="relative">
@@ -73,7 +94,7 @@ export function MilestoneList({ projectId }: { projectId: string }) {
                   </p>
                   <div className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
                     <Calendar className="mr-2 h-4 w-4" />
-                    Target: {format(new Date(milestone.targetDate), "MMMM d, yyyy")}
+                    Target: {format(new Date(milestone.dueDate), "MMMM d, yyyy")}
                   </div>
                 </CardContent>
               </Card>
@@ -82,7 +103,7 @@ export function MilestoneList({ projectId }: { projectId: string }) {
         })}
 
         {milestones?.length === 0 && (
-          <div className="text-slate-500 italic">No milestones defined yet.</div>
+          <div className="text-slate-500 italic">No milestones defined yet. Click &quot;Add Milestone&quot; to get started.</div>
         )}
       </div>
     </div>

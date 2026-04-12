@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/alert-dialog"
 
 interface ConfirmDialogProps {
-  isOpen: boolean
-  onClose: () => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onConfirm: () => void
   title: string
   description: string
@@ -23,28 +23,27 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({
-  isOpen,
-  onClose,
+  open,
+  onOpenChange,
   onConfirm,
   title,
   description,
   confirmText = "Continue",
   cancelText = "Cancel",
-  variant = "default",
+  variant = "destructive",
 }: ConfirmDialogProps) {
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open: boolean) => !open && onClose()}>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onClose}>{cancelText}</AlertDialogCancel>
+          <AlertDialogCancel>{cancelText}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => {
               onConfirm()
-              onClose()
             }}
             className={variant === "destructive" ? "bg-red-600 hover:bg-red-700 focus:ring-red-600" : ""}
           >
