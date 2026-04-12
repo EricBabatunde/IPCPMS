@@ -1,0 +1,90 @@
+"use client"
+
+import { useQuery } from "@tanstack/react-query"
+import { format } from "date-fns"
+import { Clock, Check, Loader2, Calendar } from "lucide-react"
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+
+export function MilestoneList({ projectId }: { projectId: string }) {
+  const { data: milestones, isLoading } = useQuery({
+    queryKey: ["projects", projectId, "milestones"],
+    queryFn: async () => {
+      const res = await fetch(`/api/projects/${projectId}/milestones`)
+      if (!res.ok) throw new Error("Failed to fetch milestones")
+      return res.json()
+    },
+  })
+
+  // Ensure milestones handles null or empty value properly
+  const total = milestones?.length || 0
+  const completed = milestones?.filter((m: any) => m.status === "ACHIEVED").length || 0 // eslint-disable-line @typescript-eslint/no-explicit-any
+  const progress = total > 0 ? Math.round((completed / total) * 100) : 0
+
+  if (isLoading) {
+    return <div className="p-8 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Milestone Progress</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{progress}%</div>
+            <p className="text-xs text-muted-foreground">
+              {completed} of {total} milestones achieved
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-4 pl-6 space-y-8 py-4">
+        {milestones?.map((milestone: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+          const isAchieved = milestone.status === "ACHIEVED"
+          const isOverdue = !isAchieved && new Date(milestone.targetDate) < new Date()
+          
+          return (
+            <div key={milestone.id} className="relative">
+              <span className={`absolute -left-[35px] flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-white dark:ring-slate-950 ${isAchieved ? "bg-primary text-primary-foreground" : isOverdue ? "bg-red-500 text-white" : "bg-slate-200 dark:bg-slate-800"}`}>
+                {isAchieved ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <div className="h-2 w-2 rounded-full bg-slate-400 dark:bg-slate-500" />
+                )}
+              </span>
+              
+              <Card className="max-w-2xl border-slate-200 shadow-sm dark:border-slate-800">
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">{milestone.title}</h3>
+                    <Badge variant={isAchieved ? "default" : isOverdue ? "destructive" : "secondary"}>
+                      {isAchieved ? "Achieved" : isOverdue ? "Overdue" : "Pending"}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                    {milestone.description || "No description provided."}
+                  </p>
+                  <div className="flex items-center text-sm font-medium text-slate-700 dark:text-slate-300">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Target: {format(new Date(milestone.targetDate), "MMMM d, yyyy")}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        })}
+
+        {milestones?.length === 0 && (
+          <div className="text-slate-500 italic">No milestones defined yet.</div>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -47,3 +47,6 @@ export const ourFileRouter = {
 } satisfies FileRouter
 
 export type OurFileRouter = typeof ourFileRouter
+
+import { generateComponents } from "@uploadthing/react"
+export const { UploadButton, UploadDropzone, Uploader } = generateComponents<OurFileRouter>()
