@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Send, Paperclip, Loader2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -22,9 +22,11 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const channelName = isGroup ? `private-group-${channelId}` : `private-conversation-${channelId}`
+  const queryKey = isGroup ? ["groupMessages", channelId] : ["conversationMessages", channelId]
   const { triggerTyping } = useTyping({ channelName, currentUserId, currentUserName })
 
   const postUrl = isGroup ? `/api/groups/${channelId}/messages` : `/api/messages/${channelId}`
+  const queryClient = useQueryClient()
 
   const sendMutation = useMutation({
     mutationFn: async ({ text, file }: { text: string; file: typeof fileAttachment }) => {
@@ -48,6 +50,7 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
     onSuccess: () => {
       setContent("")
       setFileAttachment(null)
+      queryClient.invalidateQueries({ queryKey })
     },
   })
 

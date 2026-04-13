@@ -40,9 +40,11 @@ export const ourFileRouter = {
     }),
 
   messageAttachment: f({
-    image: { maxFileSize: "4MB", maxFileCount: 1 },
-    pdf: { maxFileSize: "8MB", maxFileCount: 1 },
-    blob: { maxFileSize: "8MB", maxFileCount: 1 },
+    image: { maxFileSize: "8MB", maxFileCount: 1 },
+    pdf: { maxFileSize: "16MB", maxFileCount: 1 },
+    text: { maxFileSize: "16MB", maxFileCount: 1 },
+    video: { maxFileSize: "32MB", maxFileCount: 1 },
+    audio: { maxFileSize: "16MB", maxFileCount: 1 },
   })
     .middleware(async () => {
       const userId = await getAuthUserId()
