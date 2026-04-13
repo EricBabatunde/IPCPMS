@@ -51,7 +51,7 @@ export const ourFileRouter = {
       return { userId }
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      return { uploadedBy: metadata.userId, url: file.url, name: file.name }
+      return { uploadedBy: metadata.userId, url: file.url, name: file.name, type: file.type, size: file.size }
     }),
 
   profileImage: f({

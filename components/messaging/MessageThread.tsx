@@ -3,11 +3,12 @@
 import { useEffect, useRef } from "react"
 import { useInfiniteQuery } from "@tanstack/react-query"
 import { format } from "date-fns"
-import { Loader2, FileText } from "lucide-react"
+import { Loader2 } from "lucide-react"
 
 import { useMessages } from "@/hooks/useMessages"
 import { useTyping } from "@/hooks/useTyping"
 import { UserAvatar } from "@/components/shared/UserAvatar"
+import { FileIcon } from "@/components/shared/FileIcon"
 
 interface MessageThreadProps {
   channelId: string
@@ -137,12 +138,35 @@ export function MessageThread({ channelId, isGroup, currentUserId, currentUserNa
                       <div className="mb-2">
                         {msg.fileType?.startsWith("image/") ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={msg.fileUrl} alt="Attachment" className="max-w-[200px] sm:max-w-xs rounded-md" />
+                          <img 
+                            src={msg.fileUrl} 
+                            alt="Attachment" 
+                            className="max-w-[200px] sm:max-w-xs rounded-lg cursor-pointer hover:opacity-90 transition-opacity shadow-sm"
+                            onClick={() => window.open(msg.fileUrl, '_blank')}
+                          />
                         ) : (
-                          <a href={msg.fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-black/10 dark:bg-white/10 p-2 rounded-md hover:bg-black/20 dark:hover:bg-white/20 transition-colors">
-                            <FileText className="h-4 w-4" />
-                            <span className="underline truncate max-w-[150px]">View Attachment</span>
-                          </a>
+                          <div className={`flex items-center gap-3 p-3 rounded-xl border ${
+                            isMe 
+                              ? 'bg-white/10 border-white/20' 
+                              : 'bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800 shadow-sm'
+                          }`}>
+                            <div className={`p-2 rounded-lg ${isMe ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                              <FileIcon mimeType={msg.fileType || "application/octet-stream"} className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs font-semibold truncate ${isMe ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}>
+                                Attachment
+                              </p>
+                              <a 
+                                href={msg.fileUrl} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className={`text-[10px] font-medium hover:underline ${isMe ? 'text-white/70' : 'text-primary'}`}
+                              >
+                                View File
+                              </a>
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}

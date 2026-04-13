@@ -44,12 +44,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id
         token.role = (user as { role: Role }).role
         token.department = (user as { department: string | null }).department
       }
+      
+      // Explicitly handle the "update" trigger from useSession().update()
+      if (trigger === "update" && session) {
+        token.name = session.name || token.name
+        token.picture = session.image || token.picture
+      }
+
       return token
     },
     async session({ session, token }) {
@@ -57,6 +64,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string
         session.user.role = token.role as string
         session.user.department = token.department as string
+        // Sync name and image from token back to session user
+        session.user.name = token.name as string
+        session.user.image = token.picture as string
       }
       return session
     },

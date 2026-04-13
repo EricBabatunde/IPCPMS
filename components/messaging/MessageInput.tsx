@@ -18,13 +18,18 @@ interface MessageInputProps {
 
 export function MessageInput({ channelId, isGroup, currentUserId, currentUserName }: MessageInputProps) {
   const [content, setContent] = useState("")
-  const [fileAttachment, setFileAttachment] = useState<{ url: string; name: string } | null>(null)
+  const [fileAttachment, setFileAttachment] = useState<{ url: string; name: string; type: string } | null>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const { startUpload, isUploading } = useUploadThing("messageAttachment", {
     onClientUploadComplete: (res) => {
       if (res?.[0]) {
-        setFileAttachment({ url: res[0].url, name: res[0].name })
+        // Use the actual type from UploadThing
+        setFileAttachment({ 
+          url: res[0].url, 
+          name: res[0].name, 
+          type: res[0].type 
+        })
       }
     },
     onUploadError: (e) => {
@@ -45,8 +50,7 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
       const payload: any = { content: text }
       if (file) {
         payload.fileUrl = file.url
-        // Simplistic file type check based on extension or we could extract it from UploadThing
-        payload.fileType = file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? "image/jpeg" : "application/pdf"
+        payload.fileType = file.type
       }
 
       const res = await fetch(postUrl, {
