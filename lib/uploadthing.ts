@@ -10,16 +10,23 @@ const f = createUploadthing()
 async function getAuthUserId(): Promise<string> {
   try {
     const session = await auth()
-    if (!session?.user?.id) {
+    
+    if (!session) {
+      console.warn("[UPLOADTHING_AUTH] Session is null - User not logged in")
       throw new Error("Unauthorized")
     }
+
+    if (!session?.user?.id) {
+      console.warn("[UPLOADTHING_AUTH] Session exists but User ID is missing")
+      throw new Error("Unauthorized")
+    }
+
     return session.user.id
   } catch (error) {
-    // Re-throw auth failures as a clean UploadThing-compatible error
+    console.error("[UPLOADTHING_AUTH_CRITICAL_FAILURE]", error)
     if (error instanceof Error && error.message === "Unauthorized") {
       throw error
     }
-    console.error("[UPLOADTHING_AUTH]", error)
     throw new Error("Unauthorized")
   }
 }
