@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { pusherServer } from "@/lib/pusher"
 import { NextResponse } from "next/server"
+import { createNotification } from "@/lib/notifications"
 
 const MESSAGES_BATCH = 30
 
@@ -121,6 +122,25 @@ export async function POST(
     }
 
     await pusherServer.trigger(channelName, "new-message", eventData)
+
+    // Notify other member
+    const otherMember = await prisma.conversationMember.findFirst({
+      where: {
+        conversationId,
+        userId: { not: session.user.id },
+      },
+      include: { user: true },
+    })
+
+    if (otherMember) {
+      await createNotification({
+        userId: otherMember.userId,
+        title: "New Message",
+        body: `${session.user.name || "A user"}: ${message.content || "Sent an attachment"}`,
+        type: "MESSAGE",
+        link: `/dashboard/messages`,
+      })
+    }
 
     return NextResponse.json(message)
   } catch (error) {

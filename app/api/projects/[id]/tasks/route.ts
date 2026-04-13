@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { createTaskSchema } from "@/lib/validations/task"
+import { createNotification } from "@/lib/notifications"
 
 export async function GET(
   req: Request,
@@ -77,6 +78,17 @@ export async function POST(
         detail: `Created task: ${task.title}`,
       },
     })
+
+    // Notify assignee
+    if (task.assigneeId && task.assigneeId !== session.user.id) {
+      await createNotification({
+        userId: task.assigneeId,
+        title: "New Task Assigned",
+        body: `You have been assigned to: ${task.title}`,
+        type: "TASK",
+        link: `/dashboard/projects/${params.id}`,
+      })
+    }
 
     return NextResponse.json(task)
   } catch (error) {

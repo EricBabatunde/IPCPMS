@@ -1,7 +1,12 @@
 "use client"
 
-import { useState } from "react"
-import { Bell } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { Bell, Info, FileText, CheckCircle2, MessageSquare } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
+import { toast } from "sonner"
+
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -13,78 +18,148 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { getPusherClient } from "@/lib/pusher-client"
+
+interface Notification {
+  id: string
+  title: string
+  message: string
+  type: string
+  read: boolean
+  link?: string
+  createdAt: string
+}
 
 export function NotificationBell() {
-  const [unreadCount, setUnreadCount] = useState(3)
+  const { data: session } = useSession()
+  const queryClient = useQueryClient()
+  const [isOpen, setIsOpen] = useState(false)
+
+  const { data: notifications = [] } = useQuery<Notification[]>({
+    queryKey: ["notifications"],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications")
+      if (!res.ok) throw new Error("Failed to fetch notifications")
+      return res.json()
+    },
+    enabled: !!session?.user?.id,
+  })
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      await fetch("/api/notifications", { method: "PATCH" })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] })
+    },
+  })
+
+  useEffect(() => {
+    if (!session?.user?.id) return
+
+    const pusher = getPusherClient()
+    const channel = pusher.subscribe(`private-user-${session.user.id}`)
+
+    channel.bind("new-notification", (data: Notification) => {
+      queryClient.setQueryData(["notifications"], (prev: Notification[] = []) => [data, ...prev])
+      toast.info(data.title, {
+        description: data.message,
+      })
+    })
+
+    return () => {
+      pusher.unsubscribe(`private-user-${session.user.id}`)
+    }
+  }, [session?.user?.id, queryClient])
+
+  const unreadCount = notifications.filter((n: Notification) => !n.read).length
+
+  const getIcon = (type: string) => {
+    switch (type) {
+      case "SYSTEM": return <Info className="h-4 w-4 text-blue-500" />
+      case "PROJECT": return <FileText className="h-4 w-4 text-indigo-500" />
+      case "TASK": return <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+      case "MESSAGE": return <MessageSquare className="h-4 w-4 text-amber-500" />
+      default: return <Bell className="h-4 w-4 text-slate-500" />
+    }
+  }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative h-9 w-9 rounded-full">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute right-1 top-1 flex h-2 w-2 rounded-full bg-primary" />
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white ring-2 ring-white dark:ring-slate-950">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
           )}
           <span className="sr-only">Toggle notifications</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel className="flex justify-between items-center">
-          <span>Notifications</span>
+      <DropdownMenuContent align="end" className="w-80 rounded-xl overflow-hidden p-0 shadow-xl border-slate-200 dark:border-slate-800">
+        <DropdownMenuLabel className="flex justify-between items-center p-4 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
+          <span className="font-bold">Notifications</span>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setUnreadCount(0)}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-auto p-0 text-xs text-primary hover:bg-transparent" 
+              onClick={(e) => {
+                e.stopPropagation()
+                markAllReadMutation.mutate()
+              }}
+              disabled={markAllReadMutation.isPending}
+            >
               Mark all as read
             </Button>
           )}
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <ScrollArea className="h-[300px]">
+        <ScrollArea className="h-[350px]">
           <DropdownMenuGroup>
-            {/* Placeholder for notifications - dynamic rendering will go here */}
-            {unreadCount > 0 ? (
-              <>
-                <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="font-medium text-sm">New task assigned</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground ml-4 line-clamp-2">
-                    You have been assigned to &quot;Dashboard Wireframes&quot; by Bob Manager.
-                  </span>
-                  <span className="text-[10px] text-slate-400 ml-4 mt-1">2 hours ago</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="font-medium text-sm">Project milestone updated</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground ml-4 line-clamp-2">
-                    &quot;Design Phase Complete&quot; status changed to ACHIEVED.
-                  </span>
-                  <span className="text-[10px] text-slate-400 ml-4 mt-1">5 hours ago</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="font-medium text-sm">New message</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground ml-4 line-clamp-2">
-                    Alice Manager mentioned you in &quot;Steel Mill Automation Team&quot;.
-                  </span>
-                  <span className="text-[10px] text-slate-400 ml-4 mt-1">Yesterday</span>
-                </DropdownMenuItem>
-              </>
+            {notifications.length > 0 ? (
+              notifications.map((notification: Notification, index: number) => (
+                <div key={notification.id}>
+                  <DropdownMenuItem 
+                    className={`flex flex-col items-start gap-1 p-4 cursor-pointer focus:bg-slate-50 dark:focus:bg-slate-900 transition-colors ${!notification.read ? 'bg-primary/5' : ''}`}
+                    onClick={() => {
+                      // Logic to redirect if link exists can go here
+                      setIsOpen(false)
+                    }}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      {getIcon(notification.type)}
+                      <span className="font-semibold text-sm flex-1">{notification.title}</span>
+                      {!notification.read && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    </div>
+                    <span className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mt-1 px-6">
+                      {notification.message}
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-2 px-6">
+                      {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                    </span>
+                  </DropdownMenuItem>
+                  {index < notifications.length - 1 && <DropdownMenuSeparator className="m-0" />}
+                </div>
+              ))
             ) : (
-              <div className="flex flex-col items-center justify-center p-8 text-center">
-                <Bell className="h-8 w-8 text-slate-300 dark:text-slate-700 mb-2" />
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">All caught up!</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">No new notifications.</p>
+              <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+                <div className="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                  <Bell className="h-6 w-6 text-slate-300 dark:text-gray-600" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">All caught up!</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[180px]">You don&apos;t have any notifications right now.</p>
               </div>
             )}
           </DropdownMenuGroup>
         </ScrollArea>
+        {notifications.length > 0 && (
+          <div className="p-2 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+             <Button variant="ghost" size="sm" className="w-full text-xs text-slate-500" asChild>
+                <a href="/dashboard/notifications">View all notifications</a>
+             </Button>
+          </div>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

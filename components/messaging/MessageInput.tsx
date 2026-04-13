@@ -6,7 +6,7 @@ import { Send, Paperclip, Loader2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { UploadButton } from "@/lib/uploadthing"
+import { useUploadThing } from "@/lib/uploadthing"
 import { useTyping } from "@/hooks/useTyping"
 
 interface MessageInputProps {
@@ -20,6 +20,17 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
   const [content, setContent] = useState("")
   const [fileAttachment, setFileAttachment] = useState<{ url: string; name: string } | null>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const { startUpload, isUploading } = useUploadThing("messageAttachment", {
+    onClientUploadComplete: (res) => {
+      if (res?.[0]) {
+        setFileAttachment({ url: res[0].url, name: res[0].name })
+      }
+    },
+    onUploadError: (e) => {
+      console.error("Upload error:", e.message)
+    }
+  })
 
   const channelName = isGroup ? `private-group-${channelId}` : `private-conversation-${channelId}`
   const queryKey = isGroup ? ["groupMessages", channelId] : ["conversationMessages", channelId]
@@ -76,6 +87,12 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
     }
   }
 
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileClick = () => {
+    fileInputRef.current?.click()
+  }
+
   return (
     <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
       {fileAttachment && (
@@ -93,21 +110,27 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
 
       <div className="flex gap-2 items-end">
         <div className="pb-1.5 px-1 relative">
-          <UploadButton
-            endpoint="messageAttachment"
-            onClientUploadComplete={(res) => {
-              if (res?.[0]) {
-                setFileAttachment({ url: res[0].url, name: res[0].name })
+          <input 
+            type="file" 
+            ref={fileInputRef}
+            className="hidden" 
+            disabled={isUploading}
+            onChange={(e) => {
+              if (e.target.files?.length) {
+                startUpload(Array.from(e.target.files))
               }
-            }}
-            appearance={{
-              button: "w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 focus-within:ring-0 after:hidden",
-              allowedContent: "hidden"
-            }}
-            content={{
-              button: <Paperclip className="h-4 w-4" />
-            }}
+            }} 
           />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-10 w-10 shrink-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+            onClick={handleFileClick}
+            disabled={isUploading}
+            type="button"
+          >
+            {isUploading ? <Loader2 className="h-4 w-4 animate-spin text-slate-500" /> : <Paperclip className="h-4 w-4 text-slate-500" />}
+          </Button>
         </div>
 
         <Textarea

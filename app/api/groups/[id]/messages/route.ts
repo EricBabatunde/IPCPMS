@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { pusherServer } from "@/lib/pusher"
 import { NextResponse } from "next/server"
+import { createNotification } from "@/lib/notifications"
 
 const MESSAGES_BATCH = 30
 
@@ -116,6 +117,29 @@ export async function POST(
     }
 
     await pusherServer.trigger(channelName, "new-group-message", eventData)
+
+    // Notify all members except sender
+    const otherMembers = await prisma.groupMember.findMany({
+      where: {
+        groupId,
+        userId: { not: session.user.id },
+      },
+    })
+
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      select: { name: true },
+    })
+
+    for (const other of otherMembers) {
+      await createNotification({
+        userId: other.userId,
+        title: `Group: ${group?.name || "New Message"}`,
+        body: `${session.user.name || "A user"}: ${message.content || "Sent an attachment"}`,
+        type: "MESSAGE",
+        link: `/dashboard/messages`,
+      })
+    }
 
     return NextResponse.json(message)
   } catch (error) {

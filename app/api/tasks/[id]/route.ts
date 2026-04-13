@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { updateTaskSchema } from "@/lib/validations/task"
+import { createNotification } from "@/lib/notifications"
 
 export async function PATCH(
   req: Request,
@@ -44,6 +45,17 @@ export async function PATCH(
           action: "updated_task",
           detail: `Moved task "${task.title}" to ${parsed.data.status}`,
         },
+      })
+    }
+
+    // Notify new assignee if changed
+    if (parsed.data.assigneeId && parsed.data.assigneeId !== task.assigneeId && parsed.data.assigneeId !== session.user.id) {
+      await createNotification({
+        userId: parsed.data.assigneeId,
+        title: "Task Assigned",
+        body: `You have been assigned to: ${task.title}`,
+        type: "TASK",
+        link: `/dashboard/projects/${task.projectId}`,
       })
     }
 
