@@ -3,6 +3,7 @@
 import { useState, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Send, Paperclip, Loader2, X } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -24,16 +25,20 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
   const { startUpload, isUploading } = useUploadThing("messageAttachment", {
     onClientUploadComplete: (res) => {
       if (res?.[0]) {
-        // Use the actual type from UploadThing
-        setFileAttachment({ 
-          url: res[0].url, 
-          name: res[0].name, 
-          type: res[0].type 
+        // Immediate send upon upload completion
+        sendMutation.mutate({ 
+          text: content, 
+          file: { 
+            url: res[0].url, 
+            name: res[0].name, 
+            type: res[0].type 
+          } 
         })
       }
     },
     onUploadError: (e) => {
       console.error("Upload error:", e.message)
+      toast.error("Upload failed")
     }
   })
 
@@ -46,8 +51,7 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
 
   const sendMutation = useMutation({
     mutationFn: async ({ text, file }: { text: string; file: typeof fileAttachment }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const payload: any = { content: text }
+      const payload: { content: string; fileUrl?: string; fileType?: string } = { content: text }
       if (file) {
         payload.fileUrl = file.url
         payload.fileType = file.type

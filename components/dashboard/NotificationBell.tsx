@@ -1,11 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useSession } from "next-auth/react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Bell, Info, FileText, CheckCircle2, MessageSquare } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -18,61 +16,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { getPusherClient } from "@/lib/pusher-client"
-
-interface Notification {
-  id: string
-  title: string
-  message: string
-  type: string
-  read: boolean
-  link?: string
-  createdAt: string
-}
+import { useNotifications, Notification } from "@/hooks/useNotifications"
 
 export function NotificationBell() {
-  const { data: session } = useSession()
-  const queryClient = useQueryClient()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const { notifications, unreadCount, markAsRead } = useNotifications()
 
-  const { data: notifications = [] } = useQuery<Notification[]>({
-    queryKey: ["notifications"],
-    queryFn: async () => {
-      const res = await fetch("/api/notifications")
-      if (!res.ok) throw new Error("Failed to fetch notifications")
-      return res.json()
-    },
-    enabled: !!session?.user?.id,
-  })
-
-  const markAllReadMutation = useMutation({
-    mutationFn: async () => {
-      await fetch("/api/notifications", { method: "PATCH" })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] })
-    },
-  })
-
-  useEffect(() => {
-    if (!session?.user?.id) return
-
-    const pusher = getPusherClient()
-    const channel = pusher.subscribe(`private-user-${session.user.id}`)
-
-    channel.bind("new-notification", (data: Notification) => {
-      queryClient.setQueryData(["notifications"], (prev: Notification[] = []) => [data, ...prev])
-      toast.info(data.title, {
-        description: data.message,
-      })
-    })
-
-    return () => {
-      pusher.unsubscribe(`private-user-${session.user.id}`)
+  const handleNotificationClick = (notification: Notification) => {
+    // Mark as read immediately
+    if (!notification.read) {
+      markAsRead(notification.id)
     }
-  }, [session?.user?.id, queryClient])
-
-  const unreadCount = notifications.filter((n: Notification) => !n.read).length
+    
+    // Close dropdown
+    setIsOpen(false)
+    
+    // Redirect if link exists
+    if (notification.link) {
+      router.push(notification.link)
+    }
+  }
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -100,32 +64,15 @@ export function NotificationBell() {
       <DropdownMenuContent align="end" className="w-80 rounded-xl overflow-hidden p-0 shadow-xl border-slate-200 dark:border-slate-800">
         <DropdownMenuLabel className="flex justify-between items-center p-4 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
           <span className="font-bold">Notifications</span>
-          {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-auto p-0 text-xs text-primary hover:bg-transparent" 
-              onClick={(e) => {
-                e.stopPropagation()
-                markAllReadMutation.mutate()
-              }}
-              disabled={markAllReadMutation.isPending}
-            >
-              Mark all as read
-            </Button>
-          )}
         </DropdownMenuLabel>
         <ScrollArea className="h-[350px]">
           <DropdownMenuGroup>
             {notifications.length > 0 ? (
-              notifications.map((notification: Notification, index: number) => (
+              notifications.map((notification, index) => (
                 <div key={notification.id}>
                   <DropdownMenuItem 
                     className={`flex flex-col items-start gap-1 p-4 cursor-pointer focus:bg-slate-50 dark:focus:bg-slate-900 transition-colors ${!notification.read ? 'bg-primary/5' : ''}`}
-                    onClick={() => {
-                      // Logic to redirect if link exists can go here
-                      setIsOpen(false)
-                    }}
+                    onClick={() => handleNotificationClick(notification)}
                   >
                     <div className="flex items-center gap-2 w-full">
                       {getIcon(notification.type)}

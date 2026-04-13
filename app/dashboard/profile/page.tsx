@@ -35,7 +35,7 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>
 
 export default function ProfilePage() {
-  const { update } = useSession()
+  const { data: session, update } = useSession()
   const queryClient = useQueryClient()
   const [isUpdatingImage, setIsUpdatingImage] = useState(false)
 
@@ -73,8 +73,9 @@ export default function ProfilePage() {
   })
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (values: Partial<ProfileFormValues>) => {
-      const res = await fetch("/api/user/profile", {
+    mutationFn: async (values: Partial<ProfileFormValues> & { image?: string }) => {
+      if (!session?.user?.id) throw new Error("Not authenticated")
+      const res = await fetch(`/api/users/${session.user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),

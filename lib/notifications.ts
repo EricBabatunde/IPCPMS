@@ -26,8 +26,8 @@ export async function createNotification({
     })
 
     // Real-time notification via Pusher
-    // Channel: private-user-{userId}
-    await pusherServer.trigger(`private-user-${userId}`, "new-notification", {
+    // Channel: private-notifications-{userId}
+    await pusherServer.trigger(`private-notifications-${userId}`, "new-notification", {
       id: notification.id,
       title: notification.title,
       message: notification.body,
