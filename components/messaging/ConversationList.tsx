@@ -1,12 +1,16 @@
 "use client"
 
+import { useState } from "react"
+
 import { useQuery } from "@tanstack/react-query"
-import { Hash, Loader2 } from "lucide-react"
+import { Hash, Loader2, MessageSquarePlus } from "lucide-react"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { usePresence } from "@/hooks/usePresence"
+import { StartConversationModal } from "./StartConversationModal"
 
 interface ConversationListProps {
   currentUserId: string
@@ -15,6 +19,8 @@ interface ConversationListProps {
 }
 
 export function ConversationList({ currentUserId, activeChannelId, onSelectChannel }: ConversationListProps) {
+  const [modalOpen, setModalOpen] = useState(false)
+
   const { data: conversations, isLoading: isLoadingDMs } = useQuery({
     queryKey: ["conversations"],
     queryFn: async () => {
@@ -36,8 +42,11 @@ export function ConversationList({ currentUserId, activeChannelId, onSelectChann
 
   return (
     <div className="flex h-full w-full sm:w-80 flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-      <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
         <h2 className="font-semibold text-lg">Messages</h2>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setModalOpen(true)}>
+          <MessageSquarePlus className="h-4 w-4" />
+        </Button>
       </div>
 
       <Tabs defaultValue="direct" className="flex-1 flex flex-col pt-4">
@@ -119,6 +128,13 @@ export function ConversationList({ currentUserId, activeChannelId, onSelectChann
           </TabsContent>
         </ScrollArea>
       </Tabs>
+
+      <StartConversationModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        currentUserId={currentUserId}
+        onSelectConversation={onSelectChannel}
+      />
     </div>
   )
 }

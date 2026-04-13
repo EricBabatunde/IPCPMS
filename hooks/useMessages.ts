@@ -18,6 +18,9 @@ export function useMessages({ channelId, isGroup, onNewMessage }: UseMessagesPro
       return
     }
 
+    // Explicitly reset messages when channelId changes to prevent data leakage across different chats
+    setMessages([])
+
     const pusherClient = getPusherClient()
     const channelName = isGroup ? `private-group-${channelId}` : `private-conversation-${channelId}`
     const eventName = isGroup ? "new-group-message" : "new-message"

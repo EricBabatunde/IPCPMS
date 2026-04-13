@@ -1,6 +1,7 @@
 export interface MessageData {
   id: string
   content: string
+  conversationId: string
   senderId: string
   senderName: string
   senderImage: string | null

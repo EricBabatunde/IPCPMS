@@ -2,14 +2,23 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await auth()
     if (!session?.user) {
       return new NextResponse("Unauthorized", { status: 401 })
     }
 
+    const { searchParams } = new URL(req.url)
+    const search = searchParams.get("search")
+
     const users = await prisma.user.findMany({
+      where: search ? {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } }
+        ]
+      } : undefined,
       select: {
         id: true,
         name: true,
