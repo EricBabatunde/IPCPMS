@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   DndContext,
@@ -64,12 +64,8 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
   const [tasks, setTasks] = useState<Task[]>([])
 
   // Sync server state with local state when serverTasks arrive
-  useMemo(() => {
-    if (serverTasks.length > 0) {
-      setTasks([...serverTasks].sort((a, b) => a.position - b.position))
-    } else if (serverTasks.length === 0) {
-      setTasks([])
-    }
+  useEffect(() => {
+    setTasks([...serverTasks].sort((a, b) => a.position - b.position))
   }, [serverTasks])
 
   const sensors = useSensors(
