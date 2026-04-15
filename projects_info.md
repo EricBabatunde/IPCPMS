@@ -1,0 +1,14 @@
+1. Autonomous Seed Planter
+Tasks: 1. Concept Definition & Requirement Analysis, 2. 3D CAD Modeling (Chassis & Dispenser), 3. Material Selection & Sourcing (Wiper Motors, BTS7960), 4. Electrical Circuit Design & Simulation, 5. PCB Fabrication for ESP32/Pixhawk Interface, 6. Mechanical Chassis Fabrication, 7. Motor Driver Integration & Calibration, 8. Autonomous Navigation Logic Programming, 9. Seed Metering Mechanism Assembly, 10. Field Performance Testing, 11. Troubleshooting & Efficiency Optimization, 12. Final Technical Report & Documentation.
+
+2. Solar-Powered Smart Office with Digital Twin
+Tasks: 1. System Architecture Design (IoT + Twin), 2. Solar Load Calculation & Panel Sizing, 3. 3D Modeling of the Office Environment, 4. Sensor Network Selection (Temp, Humidity, Occupancy), 5. Digital Twin Environment Configuration (Web-based), 6. Electrical Control Panel Assembly, 7. API Development for Real-time Data Sync, 8. ESP32 Firmware for Sensor Node Deployment, 9. Dashboard UI Integration for Visualization, 10. Energy Management System Testing, 11. Latency Optimization for Digital Twin Sync, 12. Project Manual & Presentation Slides.
+
+3. Automated Poultry Farming System
+Tasks: 1. Mechanical Design of Feeding & Watering Lines, 2. Environmental Sensor Selection (Ammonia, Temp), 3. Control System Logic (Arduino/ESP32), 4. Parts Procurement (Pumps, Actuators, Tanks), 5. Structure Fabrication & Plumbing, 6. Circuit Assembly & Power Distribution, 7. Automated Feeding Calibration, 8. Water Level Control System Testing, 9. Integration of Mobile Alert System, 10. Whole-System Operational Stress Test, 11. Data Logging & Performance Analysis, 12. Technical Design Specifications Document.
+
+4. Smart Self-Checkout System
+Tasks: 1. UI/UX Flow Design for Checkout App, 2. Barcode Scanner Interface Configuration, 3. Load Cell Calibration for Weight Verification, 4. Database Schema Design (Items & Pricing), 5. Mechanical Enclosure Design for Kiosk, 6. ESP32-S3 Firmware for Peripheral Control, 7. Backend Integration with LittleFS/Prisma, 8. Security Logic Implementation (Anti-fraud), 9. Payment Gateway Mock Integration, 10. System Response Time Testing, 11. User Acceptance Testing (UAT), 12. Final Software & Hardware Documentation.
+
+5. Autonomous Surveillance Drone
+Tasks: 1. Aerodynamic Frame Selection & Weight Analysis, 2. Flight Controller Setup (Pixhawk/ArduPilot), 3. Power System Selection (LiPo, ESCs, Motors), 4. Camera & Gimbal Integration for Vision, 5. Telemetry System Setup for Remote Monitoring, 6. Ground Control Station (GCS) Configuration, 7. Autonomous Path Planning Programming, 8. Obstacle Avoidance Algorithm Implementation, 9. Initial Flight Stability Testing, 10. Endurance & Battery Life Evaluation, 11. Live Feed Transmission Optimization, 12. Flight Logs & Technical Review Writing.
