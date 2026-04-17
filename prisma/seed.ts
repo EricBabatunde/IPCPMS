@@ -33,8 +33,6 @@ async function main() {
     bcrypt.hash("Admin@1234", 12),
     bcrypt.hash("Alice@1234", 12),
     bcrypt.hash("Bob@1234", 12),
-    bcrypt.hash("Carol@1234", 12),
-    bcrypt.hash("Dave@1234", 12),
   ])
 
   const admin = await prisma.user.create({
@@ -73,31 +71,7 @@ async function main() {
     },
   })
 
-  const carol = await prisma.user.create({
-    data: {
-      name: "Carol Member",
-      email: "carol@ipcpms.app",
-      passwordHash: hashedPasswords[3],
-      role: Role.MEMBER,
-      department: "Mechatronics Engineering",
-      bio: "Hardware design enthusiast",
-      emailVerified: new Date(),
-    },
-  })
-
-  const dave = await prisma.user.create({
-    data: {
-      name: "Dave Member",
-      email: "dave@ipcpms.app",
-      passwordHash: hashedPasswords[4],
-      role: Role.MEMBER,
-      department: "Agricultural Engineering",
-      bio: "Irrigation and control systems",
-      emailVerified: new Date(),
-    },
-  })
-
-  const allUsers = [admin, alice, bob, carol, dave]
+  const allUsers = [admin, alice, bob]
 
   // ──────────────── PROJECTS ────────────────
   const project1 = await prisma.project.create({
@@ -138,14 +112,12 @@ async function main() {
   // ──────────────── PROJECT MEMBERS ────────────────
   const memberAssignments = [
     { projectId: project1.id, userId: alice.id, role: Role.MANAGER },
-    { projectId: project1.id, userId: carol.id, role: Role.MEMBER },
-    { projectId: project1.id, userId: dave.id, role: Role.MEMBER },
+    { projectId: project1.id, userId: bob.id, role: Role.MEMBER },
     { projectId: project1.id, userId: admin.id, role: Role.ADMIN },
     { projectId: project2.id, userId: bob.id, role: Role.MANAGER },
-    { projectId: project2.id, userId: carol.id, role: Role.MEMBER },
+    { projectId: project2.id, userId: alice.id, role: Role.MEMBER },
     { projectId: project2.id, userId: admin.id, role: Role.ADMIN },
     { projectId: project3.id, userId: alice.id, role: Role.MANAGER },
-    { projectId: project3.id, userId: dave.id, role: Role.MEMBER },
     { projectId: project3.id, userId: bob.id, role: Role.MEMBER },
     { projectId: project3.id, userId: admin.id, role: Role.ADMIN },
   ]
@@ -169,24 +141,24 @@ async function main() {
   }> = [
     // Project 1: Steel Mill Automation (5 tasks)
     { title: "PLC Program Architecture", description: "Design the overall PLC program structure including I/O mapping, function blocks, and communication protocols.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project1.id, assigneeId: alice.id, creatorId: alice.id, dueDate: subDays(new Date(), 30), completedAt: subDays(new Date(), 32), position: 0 },
-    { title: "SCADA Dashboard Design", description: "Create HMI screens for the SCADA system showing real-time process variables, alarms, and trends.", status: TaskStatus.IN_PROGRESS, priority: TaskPriority.HIGH, projectId: project1.id, assigneeId: carol.id, creatorId: alice.id, dueDate: addDays(new Date(), 7), position: 0 },
-    { title: "Motor Drive Integration", description: "Configure and test variable frequency drives for conveyor belt motors with speed feedback loops.", status: TaskStatus.IN_REVIEW, priority: TaskPriority.MEDIUM, projectId: project1.id, assigneeId: dave.id, creatorId: alice.id, dueDate: addDays(new Date(), 3), position: 0 },
-    { title: "Safety System Implementation", description: "Implement emergency stop circuits, safety interlocks, and SIL-rated safety functions.", status: TaskStatus.TODO, priority: TaskPriority.CRITICAL, projectId: project1.id, assigneeId: carol.id, creatorId: alice.id, dueDate: addDays(new Date(), 14), position: 1 },
-    { title: "Communication Protocol Testing", description: "Test Modbus TCP/IP and Profinet communication between PLCs, drives, and SCADA servers.", status: TaskStatus.BLOCKED, priority: TaskPriority.MEDIUM, projectId: project1.id, assigneeId: dave.id, creatorId: alice.id, dueDate: addDays(new Date(), 10), position: 0 },
+    { title: "SCADA Dashboard Design", description: "Create HMI screens for the SCADA system showing real-time process variables, alarms, and trends.", status: TaskStatus.IN_PROGRESS, priority: TaskPriority.HIGH, projectId: project1.id, assigneeId: bob.id, creatorId: alice.id, dueDate: addDays(new Date(), 7), position: 0 },
+    { title: "Motor Drive Integration", description: "Configure and test variable frequency drives for conveyor belt motors with speed feedback loops.", status: TaskStatus.IN_REVIEW, priority: TaskPriority.MEDIUM, projectId: project1.id, assigneeId: bob.id, creatorId: alice.id, dueDate: addDays(new Date(), 3), position: 0 },
+    { title: "Safety System Implementation", description: "Implement emergency stop circuits, safety interlocks, and SIL-rated safety functions.", status: TaskStatus.TODO, priority: TaskPriority.CRITICAL, projectId: project1.id, assigneeId: bob.id, creatorId: alice.id, dueDate: addDays(new Date(), 14), position: 1 },
+    { title: "Communication Protocol Testing", description: "Test Modbus TCP/IP and Profinet communication between PLCs, drives, and SCADA servers.", status: TaskStatus.BLOCKED, priority: TaskPriority.MEDIUM, projectId: project1.id, assigneeId: bob.id, creatorId: alice.id, dueDate: addDays(new Date(), 10), position: 0 },
 
     // Project 2: Campus Energy Monitor (5 tasks)
     { title: "IoT Sensor Specification", description: "Select and specify current transformers, voltage sensors, and data acquisition modules for each campus building.", status: TaskStatus.TODO, priority: TaskPriority.HIGH, projectId: project2.id, assigneeId: bob.id, creatorId: bob.id, dueDate: addDays(new Date(), 21), position: 0 },
-    { title: "Database Schema Design", description: "Design the time-series database schema for storing energy consumption data with appropriate indexing.", status: TaskStatus.TODO, priority: TaskPriority.MEDIUM, projectId: project2.id, assigneeId: carol.id, creatorId: bob.id, dueDate: addDays(new Date(), 28), position: 1 },
+    { title: "Database Schema Design", description: "Design the time-series database schema for storing energy consumption data with appropriate indexing.", status: TaskStatus.TODO, priority: TaskPriority.MEDIUM, projectId: project2.id, assigneeId: alice.id, creatorId: bob.id, dueDate: addDays(new Date(), 28), position: 1 },
     { title: "API Design Document", description: "Create OpenAPI specification for the energy data REST API including authentication and rate limiting.", status: TaskStatus.IN_PROGRESS, priority: TaskPriority.MEDIUM, projectId: project2.id, assigneeId: bob.id, creatorId: bob.id, dueDate: addDays(new Date(), 14), position: 0 },
-    { title: "Dashboard Wireframes", description: "Design wireframes for the energy monitoring dashboard with real-time graphs and historical analysis views.", status: TaskStatus.TODO, priority: TaskPriority.LOW, projectId: project2.id, assigneeId: carol.id, creatorId: bob.id, dueDate: addDays(new Date(), 35), position: 2 },
+    { title: "Dashboard Wireframes", description: "Design wireframes for the energy monitoring dashboard with real-time graphs and historical analysis views.", status: TaskStatus.TODO, priority: TaskPriority.LOW, projectId: project2.id, assigneeId: alice.id, creatorId: bob.id, dueDate: addDays(new Date(), 35), position: 2 },
     { title: "Network Architecture Plan", description: "Plan the campus network topology for IoT sensor connectivity including LoRaWAN gateway placement.", status: TaskStatus.TODO, priority: TaskPriority.HIGH, projectId: project2.id, assigneeId: bob.id, creatorId: bob.id, dueDate: addDays(new Date(), 14), position: 3 },
 
     // Project 3: Crop Irrigation Control (5 tasks)
-    { title: "Soil Moisture Sensor Calibration", description: "Calibrate capacitive soil moisture sensors for different soil types found in FUNAAB experimental farms.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project3.id, assigneeId: dave.id, creatorId: alice.id, dueDate: subDays(new Date(), 60), completedAt: subDays(new Date(), 62), position: 0 },
+    { title: "Soil Moisture Sensor Calibration", description: "Calibrate capacitive soil moisture sensors for different soil types found in FUNAAB experimental farms.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 60), completedAt: subDays(new Date(), 62), position: 0 },
     { title: "Valve Controller PCB Design", description: "Design the PCB for the solenoid valve controller with solar power management circuit.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 45), completedAt: subDays(new Date(), 47), position: 1 },
-    { title: "Weather API Integration", description: "Integrate OpenWeatherMap API for rain prediction to optimize irrigation scheduling algorithms.", status: TaskStatus.DONE, priority: TaskPriority.MEDIUM, projectId: project3.id, assigneeId: dave.id, creatorId: alice.id, dueDate: subDays(new Date(), 30), completedAt: subDays(new Date(), 28), position: 0 },
+    { title: "Weather API Integration", description: "Integrate OpenWeatherMap API for rain prediction to optimize irrigation scheduling algorithms.", status: TaskStatus.DONE, priority: TaskPriority.MEDIUM, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 30), completedAt: subDays(new Date(), 28), position: 0 },
     { title: "Mobile Dashboard Development", description: "Build a responsive mobile-first dashboard for farmers to monitor and control irrigation remotely.", status: TaskStatus.DONE, priority: TaskPriority.MEDIUM, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 20), completedAt: subDays(new Date(), 18), position: 1 },
-    { title: "Field Test Report", description: "Document results from the 2-week field test at FUNAAB Teaching & Research Farm, Alabata.", status: TaskStatus.DONE, priority: TaskPriority.LOW, projectId: project3.id, assigneeId: dave.id, creatorId: alice.id, dueDate: subDays(new Date(), 12), completedAt: subDays(new Date(), 11), position: 0 },
+    { title: "Field Test Report", description: "Document results from the 2-week field test at FUNAAB Teaching & Research Farm, Alabata.", status: TaskStatus.DONE, priority: TaskPriority.LOW, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 12), completedAt: subDays(new Date(), 11), position: 0 },
   ]
 
   for (const task of taskDefinitions) {
@@ -230,8 +202,7 @@ async function main() {
       members: {
         create: [
           { userId: alice.id, isAdmin: true },
-          { userId: carol.id },
-          { userId: dave.id },
+          { userId: bob.id },
           { userId: admin.id },
         ],
       },
@@ -246,7 +217,7 @@ async function main() {
       members: {
         create: [
           { userId: bob.id, isAdmin: true },
-          { userId: carol.id },
+          { userId: alice.id },
           { userId: admin.id },
         ],
       },
@@ -261,7 +232,6 @@ async function main() {
       members: {
         create: [
           { userId: alice.id, isAdmin: true },
-          { userId: dave.id },
           { userId: bob.id },
           { userId: admin.id },
         ],
@@ -272,11 +242,11 @@ async function main() {
   // ──────────────── GROUP MESSAGES ────────────────
   const groupMessages = [
     { content: "Welcome to the Steel Mill Automation project channel! Let's use this for all project-related discussions.", groupId: group1.id, senderId: alice.id, createdAt: subDays(new Date(), 55) },
-    { content: "I've uploaded the initial P&ID diagrams to the project files. Please review when you get a chance.", groupId: group1.id, senderId: carol.id, createdAt: subDays(new Date(), 50) },
+    { content: "I've uploaded the initial P&ID diagrams to the project files. Please review when you get a chance.", groupId: group1.id, senderId: bob.id, createdAt: subDays(new Date(), 50) },
     { content: "The PLC program architecture is looking good. Let's schedule a review meeting for next week.", groupId: group1.id, senderId: alice.id, createdAt: subDays(new Date(), 40) },
     { content: "Hey team! I've started setting up the IoT sensor lab for our energy monitoring project.", groupId: group2.id, senderId: bob.id, createdAt: subDays(new Date(), 5) },
     { content: "Great work on the Crop Irrigation project everyone! The field tests went really well.", groupId: group3.id, senderId: alice.id, createdAt: subDays(new Date(), 15) },
-    { content: "Thanks Alice! The soil moisture readings were very accurate. Farmers were impressed.", groupId: group3.id, senderId: dave.id, createdAt: subDays(new Date(), 14) },
+    { content: "Thanks Alice! The soil moisture readings were very accurate. Farmers were impressed.", groupId: group3.id, senderId: bob.id, createdAt: subDays(new Date(), 14) },
   ]
 
   for (const msg of groupMessages) {
@@ -290,7 +260,7 @@ async function main() {
       members: {
         create: [
           { userId: alice.id },
-          { userId: carol.id },
+          { userId: bob.id },
         ],
       },
     },
@@ -302,21 +272,21 @@ async function main() {
       members: {
         create: [
           { userId: bob.id },
-          { userId: dave.id },
+          { userId: admin.id },
         ],
       },
     },
   })
 
   const directMessages = [
-    { content: "Hey Carol, how's the SCADA dashboard coming along?", conversationId: conversation1.id, senderId: alice.id, createdAt: subDays(new Date(), 3) },
-    { content: "It's going well! I've finished the process overview screen. Working on the trend displays now.", conversationId: conversation1.id, senderId: carol.id, createdAt: subDays(new Date(), 3) },
+    { content: "Hey Bob, how's the SCADA dashboard coming along?", conversationId: conversation1.id, senderId: alice.id, createdAt: subDays(new Date(), 3) },
+    { content: "It's going well! I've finished the process overview screen. Working on the trend displays now.", conversationId: conversation1.id, senderId: bob.id, createdAt: subDays(new Date(), 3) },
     { content: "Awesome! Can you show me a preview in our next standup?", conversationId: conversation1.id, senderId: alice.id, createdAt: subDays(new Date(), 2) },
-    { content: "Sure thing! I'll have the alarm management page ready too.", conversationId: conversation1.id, senderId: carol.id, createdAt: subDays(new Date(), 1) },
-    { content: "Dave, do you have experience with LoRaWAN sensor networks?", conversationId: conversation2.id, senderId: bob.id, createdAt: subDays(new Date(), 5) },
-    { content: "Yes! I used LoRa modules in the irrigation project. They worked great for long-range, low-power comms.", conversationId: conversation2.id, senderId: dave.id, createdAt: subDays(new Date(), 4) },
+    { content: "Sure thing! I'll have the alarm management page ready too.", conversationId: conversation1.id, senderId: bob.id, createdAt: subDays(new Date(), 1) },
+    { content: "Admin, do you have experience with LoRaWAN sensor networks?", conversationId: conversation2.id, senderId: bob.id, createdAt: subDays(new Date(), 5) },
+    { content: "Yes! I used LoRa modules previously. They worked great for long-range, low-power comms.", conversationId: conversation2.id, senderId: admin.id, createdAt: subDays(new Date(), 4) },
     { content: "Perfect. Would you mind helping with the gateway placement plan for the campus project?", conversationId: conversation2.id, senderId: bob.id, createdAt: subDays(new Date(), 3) },
-    { content: "Happy to help! Let's meet at the engineering lab on Thursday.", conversationId: conversation2.id, senderId: dave.id, createdAt: subDays(new Date(), 2) },
+    { content: "Happy to help! Let's arrange a meeting.", conversationId: conversation2.id, senderId: admin.id, createdAt: subDays(new Date(), 2) },
   ]
 
   for (const msg of directMessages) {

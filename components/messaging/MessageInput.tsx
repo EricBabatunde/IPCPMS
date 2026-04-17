@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Send, Paperclip, Loader2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -26,6 +26,9 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
 
   const postUrl = isGroup ? `/api/groups/${channelId}/messages` : `/api/messages/${channelId}`
 
+  const queryClient = useQueryClient()
+  const queryKey = isGroup ? ["groupMessages", channelId] : ["conversationMessages", channelId]
+
   const sendMutation = useMutation({
     mutationFn: async ({ text, file }: { text: string; file: typeof fileAttachment }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,9 +48,46 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
       if (!res.ok) throw new Error("Failed to send message")
       return res.json()
     },
-    onSuccess: () => {
+    onMutate: async ({ text, file }) => {
+      await queryClient.cancelQueries({ queryKey })
+      const previousData = queryClient.getQueryData(queryKey)
+
+      queryClient.setQueryData(queryKey, (old: any) => {
+        if (!old || !old.pages) return old
+
+        const optimisticMessage = {
+          id: `temp-${Date.now()}`,
+          content: text,
+          fileUrl: file?.url,
+          fileType: file?.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? "image/jpeg" : "application/pdf",
+          senderId: currentUserId,
+          sender: { name: currentUserName, image: null },
+          createdAt: new Date().toISOString(),
+        }
+
+        const newPages = [...old.pages]
+        if (newPages.length > 0) {
+          newPages[0] = {
+            ...newPages[0],
+            items: [optimisticMessage, ...newPages[0].items],
+          }
+        }
+
+        return { ...old, pages: newPages }
+      })
+
       setContent("")
       setFileAttachment(null)
+
+      return { previousData }
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(queryKey, context.previousData)
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey })
     },
   })
 

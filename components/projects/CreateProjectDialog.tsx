@@ -249,7 +249,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                     className="h-8"
                   />
                 </div>
-                <ScrollArea className="max-h-[200px]">
+                <ScrollArea className="max-h-[30vh] sm:max-h-[200px]">
                   <div className="p-1">
                     {filteredUsers.length === 0 ? (
                       <div className="py-4 text-center text-sm text-muted-foreground">
