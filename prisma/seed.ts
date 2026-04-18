@@ -325,6 +325,16 @@ async function main() {
     }
   }
 
+  // ──────────────── NOTIFICATIONS ────────────────
+  const seedNotifications = [
+    { userId: admin.id, title: "System Update", body: "Welcome to IPCPMS Phase 2. Real-time engine is now active.", type: "SYSTEM" },
+    { userId: alice.id, title: "Project Assignment", body: "You have been assigned as Manager for Steel Mill Automation.", type: "PROJECT" },
+    { userId: bob.id, title: "Task Review", body: "A new task requires your review in Campus Energy Monitor.", type: "TASK" }
+  ]
+  for (const n of seedNotifications) {
+    await prisma.notification.create({ data: n })
+  }
+
   // ──────────────── SUMMARY ────────────────
   const userCount = await prisma.user.count()
   const projectCount = await prisma.project.count()

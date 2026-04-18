@@ -1,6 +1,6 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useNotifications } from "@/hooks/useNotifications"
 import { Bell, Loader2, Info, FileText, CheckCircle2 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -8,14 +8,7 @@ import { PageHeader } from "@/components/shared/PageHeader"
 import { EmptyState } from "@/components/shared/EmptyState"
 
 export default function NotificationsPage() {
-  const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: async () => {
-      const res = await fetch("/api/notifications")
-      if (!res.ok) throw new Error("Failed to fetch notifications")
-      return res.json()
-    },
-  })
+  const { data: notifications = [], isLoading } = useNotifications()
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -58,7 +51,7 @@ export default function NotificationsPage() {
                   {notification.title}
                 </h4>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {notification.message}
+                  {notification.body}
                 </p>
                 <div className="text-xs text-slate-500">
                   {format(new Date(notification.createdAt), "MMM d, yyyy 'at' h:mm a")}

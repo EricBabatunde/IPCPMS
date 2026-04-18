@@ -122,6 +122,26 @@ export async function POST(
 
     await pusherServer.trigger(channelName, "new-message", eventData)
 
+    // Trigger notification to the recipient
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { members: true },
+    })
+
+    const recipient = conversation?.members.find(m => m.userId !== session!.user!.id)
+    
+    if (recipient) {
+      const notification = await prisma.notification.create({
+        data: {
+          title: `New message from ${message.sender.name}`,
+          body: content ? (content.length > 50 ? content.substring(0, 50) + "..." : content) : "Sent an attachment",
+          type: "SYSTEM",
+          userId: recipient.userId,
+        }
+      })
+      await pusherServer.trigger(`private-user-${recipient.userId}`, "new_notification", notification)
+    }
+
     return NextResponse.json(message)
   } catch (error) {
     console.error("[MESSAGES_ID_POST]", error)

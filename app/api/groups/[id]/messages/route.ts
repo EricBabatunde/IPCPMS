@@ -117,6 +117,25 @@ export async function POST(
 
     await pusherServer.trigger(channelName, "new-group-message", eventData)
 
+    // Trigger notifications for all peers
+    const groupMembers = await prisma.groupMember.findMany({
+      where: { groupId }
+    })
+    
+    for (const m of groupMembers) {
+      if (m.userId === session!.user!.id) continue
+      
+      const notification = await prisma.notification.create({
+        data: {
+          title: `New message in group`,
+          body: `${message.sender.name}: ${content ? (content.length > 50 ? content.substring(0, 50) + "..." : content) : "Sent an attachment"}`,
+          type: "SYSTEM",
+          userId: m.userId,
+        }
+      })
+      await pusherServer.trigger(`private-user-${m.userId}`, "new_notification", notification)
+    }
+
     return NextResponse.json(message)
   } catch (error) {
     console.error("[GROUP_MESSAGES_POST]", error)

@@ -60,13 +60,6 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
     },
   })
 
-  // Optimistic tasks state
-  const [tasks, setTasks] = useState<Task[]>([])
-
-  // Sync server state with local state when serverTasks arrive
-  useEffect(() => {
-    setTasks([...serverTasks].sort((a, b) => a.position - b.position))
-  }, [serverTasks])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -83,10 +76,36 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       if (!res.ok) throw new Error("Failed to update task")
       return res.json()
     },
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ["projects", projectId, "tasks"] })
+      const previousTasks = queryClient.getQueryData<Task[]>(["projects", projectId, "tasks"])
+      
+      queryClient.setQueryData<Task[]>(["projects", projectId, "tasks"], (old) => {
+        if (!old) return old
+        return old.map(t => t.id === id ? { ...t, ...data } : t)
+      })
+
+      return { previousTasks }
+    },
+    onError: (err, newTodo, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(["projects", projectId, "tasks"], context.previousTasks)
+      }
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["projects", projectId, "tasks"] })
     },
   })
+
+  // Optimistic tasks state
+  const [tasks, setTasks] = useState<Task[]>([])
+
+  // Sync server state with local state when serverTasks arrive (Guard against overwriting when dragging)
+  useEffect(() => {
+    if (!activeTask && !updateTaskMutation.isPending) {
+      setTasks([...serverTasks].sort((a, b) => a.position - b.position))
+    }
+  }, [serverTasks, activeTask, updateTaskMutation.isPending])
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event
@@ -159,13 +178,16 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       if (columnTasks.length === 1) {
         newPosition = 1024
       } else if (taskIndexInColumn === 0) {
-        newPosition = columnTasks[1].position / 2
+        newPosition = Math.max(1, Math.round(columnTasks[1].position / 2))
+        if (newPosition >= columnTasks[1].position) newPosition = columnTasks[1].position - 1
       } else if (taskIndexInColumn === columnTasks.length - 1) {
         newPosition = columnTasks[taskIndexInColumn - 1].position + 1024
       } else {
         const prevPos = columnTasks[taskIndexInColumn - 1].position
         const nextPos = columnTasks[taskIndexInColumn + 1].position
-        newPosition = (prevPos + nextPos) / 2
+        newPosition = Math.round((prevPos + nextPos) / 2)
+        if (newPosition <= prevPos) newPosition = prevPos + 1
+        if (newPosition >= nextPos) newPosition = nextPos - 1
       }
 
       // Sync to DB

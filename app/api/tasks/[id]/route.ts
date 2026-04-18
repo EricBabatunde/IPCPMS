@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { updateTaskSchema } from "@/lib/validations/task"
+import { pusherServer } from "@/lib/pusher"
 
 export async function PATCH(
   req: Request,
@@ -45,6 +46,30 @@ export async function PATCH(
           detail: `Moved task "${task.title}" to ${parsed.data.status}`,
         },
       })
+    }
+
+    if ((parsed.data.status && parsed.data.status !== task.status) || (parsed.data.position !== undefined && parsed.data.position !== task.position)) {
+      const projectMembers = await prisma.projectMember.findMany({
+        where: { projectId: task.projectId, role: "ADMIN" }
+      })
+      
+      const notifyUsers = new Set<string>()
+      projectMembers.forEach(m => notifyUsers.add(m.userId))
+      if (task.creatorId) notifyUsers.add(task.creatorId)
+      
+      notifyUsers.delete(session.user.id)
+
+      for (const uid of notifyUsers) {
+        const notification = await prisma.notification.create({
+          data: {
+            title: "Task Updated",
+            body: `The task "${task.title}" was updated on the board.`,
+            type: "TASK",
+            userId: uid,
+          }
+        })
+        await pusherServer.trigger(`private-user-${uid}`, "new_notification", notification)
+      }
     }
 
     return NextResponse.json(updatedTask)
