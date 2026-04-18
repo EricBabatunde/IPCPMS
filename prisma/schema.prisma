@@ -61,7 +61,7 @@ model User {
   accounts              Account[]
   sessions              Session[]
   projectMembers        ProjectMember[]
-  assignedTasks         Task[]                   @relation("TaskAssignee")
+  assignedTasks         Task[]                   @relation("TaskAssignees")
   createdTasks          Task[]                   @relation("TaskCreator")
   comments              Comment[]
   sentMessages          Message[]
@@ -148,7 +148,7 @@ model Task {
   priority    TaskPriority @default(MEDIUM)
   position    Int          @default(0)
   projectId   String
-  assigneeId  String?
+
   creatorId   String
   dueDate     DateTime?
   completedAt DateTime?
@@ -156,7 +156,7 @@ model Task {
   updatedAt   DateTime     @updatedAt
 
   project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assignee User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignees User[]    @relation("TaskAssignees")
   creator  User      @relation("TaskCreator", fields: [creatorId], references: [id])
   comments Comment[]
   tags     TaskTag[]

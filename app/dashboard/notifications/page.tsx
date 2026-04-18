@@ -1,14 +1,15 @@
 "use client"
 
 import { useNotifications } from "@/hooks/useNotifications"
-import { Bell, Loader2, Info, FileText, CheckCircle2 } from "lucide-react"
+import { Bell, Loader2, Info, FileText, CheckCircle2, CheckCircle } from "lucide-react"
 import { format } from "date-fns"
 
 import { PageHeader } from "@/components/shared/PageHeader"
 import { EmptyState } from "@/components/shared/EmptyState"
+import { Button } from "@/components/ui/button"
 
 export default function NotificationsPage() {
-  const { data: notifications = [], isLoading } = useNotifications()
+  const { data: notifications = [], isLoading, markAllAsRead } = useNotifications()
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -24,6 +25,18 @@ export default function NotificationsPage() {
       <PageHeader 
         title="Notifications" 
         description="Stay updated with the latest activity across your projects."
+        action={
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => markAllAsRead.mutate()}
+            disabled={notifications.every(n => n.read) || markAllAsRead.isPending}
+            className="hidden sm:flex"
+          >
+            {markAllAsRead.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+            Mark all as read
+          </Button>
+        }
       />
 
       {isLoading ? (

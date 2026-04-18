@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { pusherServer } from "@/lib/pusher"
 
 export async function GET(
   req: Request,
@@ -59,6 +60,25 @@ export async function POST(
         detail: `Uploaded file: ${file.name}`,
       },
     })
+
+    const projectMembers = await prisma.projectMember.findMany({
+      where: { projectId: params.id },
+      include: { user: { select: { id: true, name: true } } }
+    })
+
+    for (const m of projectMembers) {
+      if (m.userId === session.user.id) continue
+      const notification = await prisma.notification.create({
+        data: {
+          title: "New File Uploaded",
+          body: `${session.user.name || "A member"} uploaded a new file: ${file.name}`,
+          type: "PROJECT",
+          userId: m.userId,
+          link: `/dashboard/projects/${params.id}`
+        }
+      })
+      await pusherServer.trigger(`private-user-${m.userId}`, "new_notification", notification)
+    }
 
     return NextResponse.json(file)
   } catch (error) {

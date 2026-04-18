@@ -26,11 +26,21 @@ export async function PATCH(
       return new NextResponse("Not Found", { status: 404 })
     }
 
+    const { assigneeIds, ...taskData } = parsed.data;
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = { ...taskData };
+    if (assigneeIds !== undefined) {
+       updateData.assignees = {
+          set: assigneeIds.map((id: string) => ({ id }))
+       };
+    }
+
     const updatedTask = await prisma.task.update({
       where: { id: params.id },
-      data: parsed.data,
+      data: updateData,
       include: {
-        assignee: { select: { id: true, name: true, image: true } },
+        assignees: { select: { id: true, name: true, image: true } },
         tags: true,
         _count: { select: { comments: true } }
       }
@@ -66,6 +76,7 @@ export async function PATCH(
             body: `The task "${task.title}" was updated on the board.`,
             type: "TASK",
             userId: uid,
+            link: `/dashboard/projects/${task.projectId}?task=${task.id}`
           }
         })
         await pusherServer.trigger(`private-user-${uid}`, "new_notification", notification)

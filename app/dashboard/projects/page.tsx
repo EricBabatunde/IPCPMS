@@ -95,9 +95,7 @@ export default function ProjectsPage() {
   })
 
   const renderProjectCard = (project: any, isMember: boolean) => {
-    const tasksDone = project._count?.tasks || 0
-    // Use a stable calculation: % of completed tasks
-    const progress = tasksDone > 0 ? Math.min(Math.round((tasksDone / (tasksDone + 5)) * 100), 95) : 0
+    const progress = project.completionPercentage || 0
 
     return (
       <Card key={project.id} className="group overflow-hidden transition-all hover:shadow-md border-slate-200 dark:border-slate-800 hover:border-primary/50">

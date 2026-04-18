@@ -25,6 +25,8 @@ export async function GET(
             }
           }
         },
+        tasks: { select: { status: true } },
+        milestones: { select: { status: true } },
       }
     })
 
@@ -38,7 +40,20 @@ export async function GET(
       return new NextResponse("Forbidden", { status: 403 })
     }
 
-    return NextResponse.json(project)
+    const totalTasks = project.tasks.length
+    const doneTasks = project.tasks.filter((t) => t.status === "DONE").length
+    const taskScore = totalTasks > 0 ? (doneTasks / totalTasks) * 70 : 0
+
+    const totalMilestones = project.milestones.length
+    const achievedMilestones = project.milestones.filter((m) => m.status === "ACHIEVED").length
+    const milestoneScore = totalMilestones > 0 ? (achievedMilestones / totalMilestones) * 30 : 0
+
+    const projectPayload = {
+      ...project,
+      completionPercentage: Math.round(taskScore + milestoneScore)
+    }
+
+    return NextResponse.json(projectPayload)
   } catch (error) {
     console.error("[PROJECT_GET]", error)
     return new NextResponse("Internal Error", { status: 500 })

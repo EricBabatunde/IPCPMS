@@ -11,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { usePresence } from "@/hooks/usePresence"
 import { StartConversationModal } from "./StartConversationModal"
+import { useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { getPusherClient } from "@/lib/pusher-client"
 
 interface ConversationListProps {
   currentUserId: string
@@ -39,6 +42,66 @@ export function ConversationList({ currentUserId, activeChannelId, onSelectChann
       return res.json()
     },
   })
+
+  useEffect(() => {
+    if (!currentUserId || !conversations) return
+    const pusherClient = getPusherClient()
+    
+    const mappedChannels = conversations.map((c: any) => pusherClient.subscribe(`private-conversation-${c.id}`))
+    
+    mappedChannels.forEach((channel) => {
+      channel.bind("new-message", (msg: any) => {
+        const queryClient = useQueryClient()
+        queryClient.setQueryData(["conversations"], (old: any) => {
+          if (!old) return old
+          return old.map((c: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (c.id === msg.conversationId || c.id === channel.name.replace('private-conversation-', '')) {
+              return { ...c, messages: [msg, ...(c.messages || [])] }
+            }
+            return c
+          })
+        })
+      })
+    })
+
+    return () => {
+      mappedChannels.forEach((channel) => {
+        channel.unbind("new-message")
+        pusherClient.unsubscribe(channel.name)
+      })
+    }
+  }, [currentUserId, conversations])
+
+  useEffect(() => {
+    if (!currentUserId || !groups) return
+    const pusherClient = getPusherClient()
+    
+    const mappedChannels = groups.map((g: any) => pusherClient.subscribe(`private-group-${g.id}`))
+    
+    mappedChannels.forEach((channel) => {
+      channel.bind("new-group-message", (msg: any) => {
+        const queryClient = useQueryClient()
+        queryClient.setQueryData(["groups"], (old: any) => {
+          if (!old) return old
+          return old.map((g: any) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (g.id === msg.groupId || g.id === channel.name.replace('private-group-', '')) {
+              return { ...g, messages: [msg, ...(g.messages || [])] }
+            }
+            return g
+          })
+        })
+      })
+    })
+
+    return () => {
+      mappedChannels.forEach((channel) => {
+        channel.unbind("new-group-message")
+        pusherClient.unsubscribe(channel.name)
+      })
+    }
+  }, [currentUserId, groups])
 
   return (
     <div className="flex h-full w-full sm:w-80 flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">

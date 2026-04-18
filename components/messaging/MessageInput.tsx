@@ -6,7 +6,6 @@ import { Send, Paperclip, Loader2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { UploadButton } from "@/lib/uploadthing"
 import { useTyping } from "@/hooks/useTyping"
 
 interface MessageInputProps {
@@ -18,7 +17,6 @@ interface MessageInputProps {
 
 export function MessageInput({ channelId, isGroup, currentUserId, currentUserName }: MessageInputProps) {
   const [content, setContent] = useState("")
-  const [fileAttachment, setFileAttachment] = useState<{ url: string; name: string } | null>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const channelName = isGroup ? `private-group-${channelId}` : `private-conversation-${channelId}`
@@ -30,14 +28,9 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
   const queryKey = isGroup ? ["groupMessages", channelId] : ["conversationMessages", channelId]
 
   const sendMutation = useMutation({
-    mutationFn: async ({ text, file }: { text: string; file: typeof fileAttachment }) => {
+    mutationFn: async ({ text }: { text: string }) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const payload: any = { content: text }
-      if (file) {
-        payload.fileUrl = file.url
-        // Simplistic file type check based on extension or we could extract it from UploadThing
-        payload.fileType = file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? "image/jpeg" : "application/pdf"
-      }
 
       const res = await fetch(postUrl, {
         method: "POST",
@@ -48,7 +41,7 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
       if (!res.ok) throw new Error("Failed to send message")
       return res.json()
     },
-    onMutate: async ({ text, file }) => {
+    onMutate: async ({ text }) => {
       await queryClient.cancelQueries({ queryKey })
       const previousData = queryClient.getQueryData(queryKey)
 
@@ -58,8 +51,6 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
         const optimisticMessage = {
           id: `temp-${Date.now()}`,
           content: text,
-          fileUrl: file?.url,
-          fileType: file?.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? "image/jpeg" : "application/pdf",
           senderId: currentUserId,
           sender: { name: currentUserName, image: null },
           createdAt: new Date().toISOString(),
@@ -77,7 +68,6 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
       })
 
       setContent("")
-      setFileAttachment(null)
 
       return { previousData }
     },
@@ -102,8 +92,8 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
   }
 
   const handleSend = () => {
-    if (!content.trim() && !fileAttachment) return
-    sendMutation.mutate({ text: content, file: fileAttachment })
+    if (!content.trim()) return
+    sendMutation.mutate({ text: content })
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -115,37 +105,7 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
 
   return (
     <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
-      {fileAttachment && (
-        <div className="mb-3 flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-2 rounded-md border border-slate-200 dark:border-slate-800 w-fit relative pr-10">
-          <Paperclip className="h-4 w-4 text-slate-500" />
-          <span className="text-sm text-slate-700 dark:text-slate-300 truncate max-w-[200px]">{fileAttachment.name}</span>
-          <button 
-            onClick={() => setFileAttachment(null)} 
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
       <div className="flex gap-2 items-end">
-        <div className="pb-1.5 px-1 relative">
-          <UploadButton
-            endpoint="messageAttachment"
-            onClientUploadComplete={(res) => {
-              if (res?.[0]) {
-                setFileAttachment({ url: res[0].url, name: res[0].name })
-              }
-            }}
-            appearance={{
-              button: "w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 focus-within:ring-0 after:hidden",
-              allowedContent: "hidden"
-            }}
-            content={{
-              button: <Paperclip className="h-4 w-4" />
-            }}
-          />
-        </div>
 
         <Textarea
           value={content}
@@ -159,7 +119,7 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
           size="icon" 
           className="h-11 w-11 rounded-xl flex-shrink-0" 
           onClick={handleSend}
-          disabled={(!content.trim() && !fileAttachment) || sendMutation.isPending}
+          disabled={!content.trim() || sendMutation.isPending}
         >
           {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 ml-0.5" />}
         </Button>

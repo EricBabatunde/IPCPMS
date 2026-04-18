@@ -133,36 +133,44 @@ async function main() {
     status: TaskStatus
     priority: TaskPriority
     projectId: string
-    assigneeId: string
+    assigneeIds: string[]
     creatorId: string
     dueDate: Date
     completedAt?: Date
     position: number
   }> = [
     // Project 1: Steel Mill Automation (5 tasks)
-    { title: "PLC Program Architecture", description: "Design the overall PLC program structure including I/O mapping, function blocks, and communication protocols.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project1.id, assigneeId: alice.id, creatorId: alice.id, dueDate: subDays(new Date(), 30), completedAt: subDays(new Date(), 32), position: 0 },
-    { title: "SCADA Dashboard Design", description: "Create HMI screens for the SCADA system showing real-time process variables, alarms, and trends.", status: TaskStatus.IN_PROGRESS, priority: TaskPriority.HIGH, projectId: project1.id, assigneeId: bob.id, creatorId: alice.id, dueDate: addDays(new Date(), 7), position: 0 },
-    { title: "Motor Drive Integration", description: "Configure and test variable frequency drives for conveyor belt motors with speed feedback loops.", status: TaskStatus.IN_REVIEW, priority: TaskPriority.MEDIUM, projectId: project1.id, assigneeId: bob.id, creatorId: alice.id, dueDate: addDays(new Date(), 3), position: 0 },
-    { title: "Safety System Implementation", description: "Implement emergency stop circuits, safety interlocks, and SIL-rated safety functions.", status: TaskStatus.TODO, priority: TaskPriority.CRITICAL, projectId: project1.id, assigneeId: bob.id, creatorId: alice.id, dueDate: addDays(new Date(), 14), position: 1 },
-    { title: "Communication Protocol Testing", description: "Test Modbus TCP/IP and Profinet communication between PLCs, drives, and SCADA servers.", status: TaskStatus.BLOCKED, priority: TaskPriority.MEDIUM, projectId: project1.id, assigneeId: bob.id, creatorId: alice.id, dueDate: addDays(new Date(), 10), position: 0 },
+    { title: "PLC Program Architecture", description: "Design the overall PLC program structure including I/O mapping, function blocks, and communication protocols.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project1.id, assigneeIds: [alice.id], creatorId: alice.id, dueDate: subDays(new Date(), 30), completedAt: subDays(new Date(), 32), position: 0 },
+    { title: "SCADA Dashboard Design", description: "Create HMI screens for the SCADA system showing real-time process variables, alarms, and trends.", status: TaskStatus.IN_PROGRESS, priority: TaskPriority.HIGH, projectId: project1.id, assigneeIds: [bob.id], creatorId: alice.id, dueDate: addDays(new Date(), 7), position: 0 },
+    { title: "Motor Drive Integration", description: "Configure and test variable frequency drives for conveyor belt motors with speed feedback loops.", status: TaskStatus.IN_REVIEW, priority: TaskPriority.MEDIUM, projectId: project1.id, assigneeIds: [bob.id], creatorId: alice.id, dueDate: addDays(new Date(), 3), position: 0 },
+    { title: "Safety System Implementation", description: "Implement emergency stop circuits, safety interlocks, and SIL-rated safety functions.", status: TaskStatus.TODO, priority: TaskPriority.CRITICAL, projectId: project1.id, assigneeIds: [bob.id], creatorId: alice.id, dueDate: addDays(new Date(), 14), position: 1 },
+    { title: "Communication Protocol Testing", description: "Test Modbus TCP/IP and Profinet communication between PLCs, drives, and SCADA servers.", status: TaskStatus.BLOCKED, priority: TaskPriority.MEDIUM, projectId: project1.id, assigneeIds: [bob.id], creatorId: alice.id, dueDate: addDays(new Date(), 10), position: 0 },
 
     // Project 2: Campus Energy Monitor (5 tasks)
-    { title: "IoT Sensor Specification", description: "Select and specify current transformers, voltage sensors, and data acquisition modules for each campus building.", status: TaskStatus.TODO, priority: TaskPriority.HIGH, projectId: project2.id, assigneeId: bob.id, creatorId: bob.id, dueDate: addDays(new Date(), 21), position: 0 },
-    { title: "Database Schema Design", description: "Design the time-series database schema for storing energy consumption data with appropriate indexing.", status: TaskStatus.TODO, priority: TaskPriority.MEDIUM, projectId: project2.id, assigneeId: alice.id, creatorId: bob.id, dueDate: addDays(new Date(), 28), position: 1 },
-    { title: "API Design Document", description: "Create OpenAPI specification for the energy data REST API including authentication and rate limiting.", status: TaskStatus.IN_PROGRESS, priority: TaskPriority.MEDIUM, projectId: project2.id, assigneeId: bob.id, creatorId: bob.id, dueDate: addDays(new Date(), 14), position: 0 },
-    { title: "Dashboard Wireframes", description: "Design wireframes for the energy monitoring dashboard with real-time graphs and historical analysis views.", status: TaskStatus.TODO, priority: TaskPriority.LOW, projectId: project2.id, assigneeId: alice.id, creatorId: bob.id, dueDate: addDays(new Date(), 35), position: 2 },
-    { title: "Network Architecture Plan", description: "Plan the campus network topology for IoT sensor connectivity including LoRaWAN gateway placement.", status: TaskStatus.TODO, priority: TaskPriority.HIGH, projectId: project2.id, assigneeId: bob.id, creatorId: bob.id, dueDate: addDays(new Date(), 14), position: 3 },
+    { title: "IoT Sensor Specification", description: "Select and specify current transformers, voltage sensors, and data acquisition modules for each campus building.", status: TaskStatus.TODO, priority: TaskPriority.HIGH, projectId: project2.id, assigneeIds: [bob.id], creatorId: bob.id, dueDate: addDays(new Date(), 21), position: 0 },
+    { title: "Database Schema Design", description: "Design the time-series database schema for storing energy consumption data with appropriate indexing.", status: TaskStatus.TODO, priority: TaskPriority.MEDIUM, projectId: project2.id, assigneeIds: [alice.id], creatorId: bob.id, dueDate: addDays(new Date(), 28), position: 1 },
+    { title: "API Design Document", description: "Create OpenAPI specification for the energy data REST API including authentication and rate limiting.", status: TaskStatus.IN_PROGRESS, priority: TaskPriority.MEDIUM, projectId: project2.id, assigneeIds: [bob.id], creatorId: bob.id, dueDate: addDays(new Date(), 14), position: 0 },
+    { title: "Dashboard Wireframes", description: "Design wireframes for the energy monitoring dashboard with real-time graphs and historical analysis views.", status: TaskStatus.TODO, priority: TaskPriority.LOW, projectId: project2.id, assigneeIds: [alice.id], creatorId: bob.id, dueDate: addDays(new Date(), 35), position: 2 },
+    { title: "Network Architecture Plan", description: "Plan the campus network topology for IoT sensor connectivity including LoRaWAN gateway placement.", status: TaskStatus.TODO, priority: TaskPriority.HIGH, projectId: project2.id, assigneeIds: [bob.id], creatorId: bob.id, dueDate: addDays(new Date(), 14), position: 3 },
 
     // Project 3: Crop Irrigation Control (5 tasks)
-    { title: "Soil Moisture Sensor Calibration", description: "Calibrate capacitive soil moisture sensors for different soil types found in FUNAAB experimental farms.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 60), completedAt: subDays(new Date(), 62), position: 0 },
-    { title: "Valve Controller PCB Design", description: "Design the PCB for the solenoid valve controller with solar power management circuit.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 45), completedAt: subDays(new Date(), 47), position: 1 },
-    { title: "Weather API Integration", description: "Integrate OpenWeatherMap API for rain prediction to optimize irrigation scheduling algorithms.", status: TaskStatus.DONE, priority: TaskPriority.MEDIUM, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 30), completedAt: subDays(new Date(), 28), position: 0 },
-    { title: "Mobile Dashboard Development", description: "Build a responsive mobile-first dashboard for farmers to monitor and control irrigation remotely.", status: TaskStatus.DONE, priority: TaskPriority.MEDIUM, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 20), completedAt: subDays(new Date(), 18), position: 1 },
-    { title: "Field Test Report", description: "Document results from the 2-week field test at FUNAAB Teaching & Research Farm, Alabata.", status: TaskStatus.DONE, priority: TaskPriority.LOW, projectId: project3.id, assigneeId: bob.id, creatorId: alice.id, dueDate: subDays(new Date(), 12), completedAt: subDays(new Date(), 11), position: 0 },
+    { title: "Soil Moisture Sensor Calibration", description: "Calibrate capacitive soil moisture sensors for different soil types found in FUNAAB experimental farms.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project3.id, assigneeIds: [bob.id], creatorId: alice.id, dueDate: subDays(new Date(), 60), completedAt: subDays(new Date(), 62), position: 0 },
+    { title: "Valve Controller PCB Design", description: "Design the PCB for the solenoid valve controller with solar power management circuit.", status: TaskStatus.DONE, priority: TaskPriority.HIGH, projectId: project3.id, assigneeIds: [bob.id], creatorId: alice.id, dueDate: subDays(new Date(), 45), completedAt: subDays(new Date(), 47), position: 1 },
+    { title: "Weather API Integration", description: "Integrate OpenWeatherMap API for rain prediction to optimize irrigation scheduling algorithms.", status: TaskStatus.DONE, priority: TaskPriority.MEDIUM, projectId: project3.id, assigneeIds: [bob.id], creatorId: alice.id, dueDate: subDays(new Date(), 30), completedAt: subDays(new Date(), 28), position: 0 },
+    { title: "Mobile Dashboard Development", description: "Build a responsive mobile-first dashboard for farmers to monitor and control irrigation remotely.", status: TaskStatus.DONE, priority: TaskPriority.MEDIUM, projectId: project3.id, assigneeIds: [bob.id], creatorId: alice.id, dueDate: subDays(new Date(), 20), completedAt: subDays(new Date(), 18), position: 1 },
+    { title: "Field Test Report", description: "Document results from the 2-week field test at FUNAAB Teaching & Research Farm, Alabata.", status: TaskStatus.DONE, priority: TaskPriority.LOW, projectId: project3.id, assigneeIds: [bob.id], creatorId: alice.id, dueDate: subDays(new Date(), 12), completedAt: subDays(new Date(), 11), position: 0 },
   ]
 
   for (const task of taskDefinitions) {
-    await prisma.task.create({ data: task })
+    const { assigneeIds, ...taskData } = task;
+    await prisma.task.create({ 
+      data: {
+        ...taskData,
+        assignees: {
+          connect: assigneeIds.map(id => ({ id }))
+        }
+      } 
+    })
   }
 
   // ──────────────── MILESTONES ────────────────
@@ -327,13 +335,12 @@ async function main() {
 
   // ──────────────── NOTIFICATIONS ────────────────
   const seedNotifications = [
-    { userId: admin.id, title: "System Update", body: "Welcome to IPCPMS Phase 2. Real-time engine is now active.", type: "SYSTEM" },
+    { userId: admin.id, title: "System Update", body: "Welcome to IPCPMS Phase 3. Real-time engine is now active.", type: "SYSTEM" },
     { userId: alice.id, title: "Project Assignment", body: "You have been assigned as Manager for Steel Mill Automation.", type: "PROJECT" },
     { userId: bob.id, title: "Task Review", body: "A new task requires your review in Campus Energy Monitor.", type: "TASK" }
   ]
-  for (const n of seedNotifications) {
-    await prisma.notification.create({ data: n })
-  }
+  
+  await prisma.notification.createMany({ data: seedNotifications })
 
   // ──────────────── SUMMARY ────────────────
   const userCount = await prisma.user.count()

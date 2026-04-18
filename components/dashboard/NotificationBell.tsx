@@ -1,6 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { useNotifications } from "@/hooks/useNotifications"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useRouter } from "next/navigation"
+import { format } from "date-fns"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +19,43 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function NotificationBell() {
-  const [unreadCount, setUnreadCount] = useState(3)
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const { data: notifications = [], isLoading } = useNotifications()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const unreadCount = notifications.filter((n: any) => !n.read).length
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/notifications/mark-all-read", { method: "PATCH" })
+      if (!res.ok) throw new Error("Failed to mark all as read")
+      return res.json()
+    },
+    onMutate: () => {
+      // Optimistic bulk clear
+      queryClient.setQueryData(["notifications"], (old: any) => {
+        if (!old) return old
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return old.map((n: any) => ({ ...n, read: true }))
+      })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] })
+    }
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleNotificationClick = (notification: any) => {
+    // If it's a PROJECT/TASK context linking (e.g. link string stored internally or inferred)
+    if (notification.type === "TASK" && notification.link) {
+      router.push(notification.link)
+    } else if (notification.type === "SYSTEM" && notification.body.includes("message")) {
+      router.push(`/dashboard/messages`)
+    } else {
+      router.push(`/dashboard/notifications`)
+    }
+  }
 
   return (
     <DropdownMenu>
@@ -32,49 +72,47 @@ export function NotificationBell() {
         <DropdownMenuLabel className="flex justify-between items-center">
           <span>Notifications</span>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setUnreadCount(0)}>
-              Mark all as read
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-auto p-0 text-xs text-primary" 
+              onClick={() => markAllReadMutation.mutate()}
+              disabled={markAllReadMutation.isPending}
+            >
+              {markAllReadMutation.isPending ? "Marking..." : "Mark all as read"}
             </Button>
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <ScrollArea className="h-[300px]">
           <DropdownMenuGroup>
-            {/* Placeholder for notifications - dynamic rendering will go here */}
-            {unreadCount > 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
+                Loading...
+              </div>
+            ) : notifications.length > 0 ? (
               <>
-                <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="font-medium text-sm">New task assigned</span>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {notifications.slice(0, 10).map((notification: any) => (
+                  <div key={notification.id}>
+                    <DropdownMenuItem 
+                      onClick={() => handleNotificationClick(notification)}
+                      className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${notification.read ? "" : "bg-primary/5"}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {!notification.read && <span className="h-2 w-2 rounded-full bg-primary" />}
+                        <span className="font-medium text-sm">{notification.title}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground ml-4 line-clamp-2">
+                        {notification.body}
+                      </span>
+                      <span className="text-[10px] text-slate-400 ml-4 mt-1">
+                        {format(new Date(notification.createdAt), "MMM d, h:mm a")}
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                   </div>
-                  <span className="text-xs text-muted-foreground ml-4 line-clamp-2">
-                    You have been assigned to &quot;Dashboard Wireframes&quot; by Bob Manager.
-                  </span>
-                  <span className="text-[10px] text-slate-400 ml-4 mt-1">2 hours ago</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="font-medium text-sm">Project milestone updated</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground ml-4 line-clamp-2">
-                    &quot;Design Phase Complete&quot; status changed to ACHIEVED.
-                  </span>
-                  <span className="text-[10px] text-slate-400 ml-4 mt-1">5 hours ago</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="font-medium text-sm">New message</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground ml-4 line-clamp-2">
-                    Alice Manager mentioned you in &quot;Steel Mill Automation Team&quot;.
-                  </span>
-                  <span className="text-[10px] text-slate-400 ml-4 mt-1">Yesterday</span>
-                </DropdownMenuItem>
+                ))}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center p-8 text-center">

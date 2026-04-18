@@ -5,9 +5,14 @@ import { useQuery } from "@tanstack/react-query"
 import { format } from "date-fns"
 import { Clock, Check, Loader2, Calendar, Plus } from "lucide-react"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { CreateMilestoneModal } from "./CreateMilestoneModal"
 
 export function MilestoneList({ projectId }: { projectId: string }) {
@@ -20,6 +25,65 @@ export function MilestoneList({ projectId }: { projectId: string }) {
       if (!res.ok) throw new Error("Failed to fetch milestones")
       return res.json()
     },
+  })
+
+  // Management State
+  const queryClient = useQueryClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedMilestone, setSelectedMilestone] = useState<any>(null)
+  const [isManageOpen, setIsManageOpen] = useState(false)
+  
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editDueDate, setEditDueDate] = useState("")
+
+  const openManage = (milestone: any) => {
+    setSelectedMilestone(milestone)
+    setEditTitle(milestone.title)
+    setEditDescription(milestone.description || "")
+    setEditDueDate(new Date(milestone.dueDate).toISOString().split('T')[0])
+    setIsManageOpen(true)
+  }
+
+  const invalidateCache = () => {
+    queryClient.invalidateQueries({ queryKey: ["projects", projectId, "milestones"] })
+    setIsManageOpen(false)
+  }
+
+  const updateMutation = useMutation({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mutationFn: async ({ id, data }: { id: string, data: any }) => {
+      const res = await fetch(`/api/milestones/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+      if (!res.ok) throw new Error("Failed to update milestone")
+      return res.json()
+    },
+    onSettled: invalidateCache
+  })
+
+  const completeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/milestones/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ACHIEVED" })
+      })
+      if (!res.ok) throw new Error("Failed to complete milestone")
+      return res.json()
+    },
+    onSettled: invalidateCache
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/milestones/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete milestone")
+      return res.json()
+    },
+    onSettled: invalidateCache
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,7 +143,10 @@ export function MilestoneList({ projectId }: { projectId: string }) {
                 )}
               </span>
               
-              <Card className="max-w-2xl border-slate-200 shadow-sm dark:border-slate-800">
+              <Card 
+                className="max-w-2xl border-slate-200 shadow-sm dark:border-slate-800 cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => openManage(milestone)}
+              >
                 <CardHeader className="p-4 pb-2">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-lg">{milestone.title}</h3>
@@ -106,6 +173,60 @@ export function MilestoneList({ projectId }: { projectId: string }) {
           <div className="text-slate-500 italic">No milestones defined yet. Click &quot;Add Milestone&quot; to get started.</div>
         )}
       </div>
+
+      {selectedMilestone && (
+        <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Manage Milestone</DialogTitle>
+              <CardDescription>Update details or mark this milestone as achieved.</CardDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Due Date</Label>
+                <Input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
+              </div>
+            </div>
+            <DialogFooter className="flex w-full justify-between sm:justify-between items-center">
+              <Button 
+                variant="destructive" 
+                onClick={() => deleteMutation.mutate(selectedMilestone.id)}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
+              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => updateMutation.mutate({ 
+                    id: selectedMilestone.id, 
+                    data: { title: editTitle, description: editDescription, dueDate: new Date(editDueDate).toISOString() }
+                  })}
+                  disabled={updateMutation.isPending}
+                >
+                  Save
+                </Button>
+                {selectedMilestone.status !== "ACHIEVED" && (
+                  <Button 
+                    onClick={() => completeMutation.mutate(selectedMilestone.id)}
+                    disabled={completeMutation.isPending}
+                  >
+                    Mark Achieved
+                  </Button>
+                )}
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

@@ -184,7 +184,8 @@ export async function GET(req: Request) {
         const data = []
 
         for (const u of uniqueUsers) {
-          const tasksCompleted = await prisma.task.count({ where: { assigneeId: u.id, status: "DONE", projectId: { in: targetProjectIds } } })
+          // @ts-ignore: Prisma Types are currently globally stale in node_modules until generation is executed natively.
+          const tasksCompleted = await prisma.task.count({ where: { assignees: { some: { id: u.id } }, status: "DONE", projectId: { in: targetProjectIds } } })
           const commentsPosted = await prisma.comment.count({ where: { authorId: u.id, task: { projectId: { in: targetProjectIds } } } })
           const filesUploaded = await prisma.projectFile.count({ where: { uploaderId: u.id, projectId: { in: targetProjectIds } } })
           

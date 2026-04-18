@@ -6,7 +6,7 @@ export const createTaskSchema = z.object({
   status: z.enum(["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE", "BLOCKED"]).default("TODO"),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("MEDIUM"),
   projectId: z.string().cuid(),
-  assigneeId: z.string().cuid().optional(),
+  assigneeIds: z.array(z.string().cuid()).optional(),
   dueDate: z.string().datetime().optional(),
 })
 

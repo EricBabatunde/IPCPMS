@@ -110,7 +110,16 @@ export function TaskCard({ task, onClick }: TaskProps) {
               </div>
             )}
           </div>
-          {task.assignee && <UserAvatar user={task.assignee} className="h-6 w-6" />}
+          <div className="flex items-center -space-x-2">
+            {task.assignees?.slice(0, 2).map((assignee: any) => (
+              <UserAvatar key={assignee.id} user={assignee} className="h-6 w-6 border-2 border-white dark:border-slate-950" />
+            ))}
+            {task.assignees?.length > 2 && (
+              <div className="h-6 w-6 rounded-full border-2 border-white dark:border-slate-950 bg-slate-100 flex items-center justify-center text-[10px] font-medium z-10 dark:bg-slate-800">
+                +{task.assignees.length - 2}
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

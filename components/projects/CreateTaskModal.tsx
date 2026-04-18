@@ -71,6 +71,7 @@ export function CreateTaskModal({ open, onOpenChange, projectId, defaultStatus }
       status: defaultStatus as CreateTaskInput["status"],
       priority: "MEDIUM",
       projectId,
+      assigneeIds: [],
     },
   })
 
@@ -173,20 +174,29 @@ export function CreateTaskModal({ open, onOpenChange, projectId, defaultStatus }
           </div>
 
           <div className="space-y-2">
-            <Label>Assignee</Label>
-            <Select onValueChange={(val) => setValue("assigneeId", val, { shouldValidate: true })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Assign to someone..." />
-              </SelectTrigger>
-              <SelectContent>
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {users.map((user: any) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.name} ({user.email})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Assignees</Label>
+            <div className="max-h-32 overflow-y-auto rounded-md border border-input p-2 space-y-2">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {users.map((user: any) => (
+                <label key={user.id} className="flex items-start space-x-3 cursor-pointer">
+                  <input 
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    onChange={(e) => {
+                      const current = watch("assigneeIds") || [];
+                      if (e.target.checked) {
+                        setValue("assigneeIds", [...current, user.id], { shouldValidate: true });
+                      } else {
+                        setValue("assigneeIds", current.filter((id: string) => id !== user.id), { shouldValidate: true });
+                      }
+                    }}
+                  />
+                  <div className="font-normal text-sm">
+                    {user.name} <span className="text-slate-500 text-xs">({user.email})</span>
+                  </div>
+                </label>
+              ))}
+            </div>
           </div>
 
           <DialogFooter className="pt-4">

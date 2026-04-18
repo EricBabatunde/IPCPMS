@@ -17,7 +17,7 @@ export async function GET(
     const tasks = await prisma.task.findMany({
       where: { projectId: params.id },
       include: {
-        assignee: { select: { id: true, name: true, image: true } },
+        assignees: { select: { id: true, name: true, image: true } },
         tags: true,
         _count: { select: { comments: true } }
       },
@@ -57,14 +57,19 @@ export async function POST(
     
     const newPosition = lastTask ? lastTask.position + 1024 : 1024
 
+    const { assigneeIds, ...taskData } = parsed.data;
+
     const task = await prisma.task.create({
       data: {
-        ...parsed.data,
+        ...taskData,
         position: newPosition,
         creatorId: session.user.id,
+        assignees: {
+          connect: assigneeIds?.map((id: string) => ({ id })) || []
+        }
       },
       include: {
-        assignee: { select: { id: true, name: true, image: true } },
+        assignees: { select: { id: true, name: true, image: true } },
         tags: true,
         _count: { select: { comments: true } }
       }
@@ -79,16 +84,21 @@ export async function POST(
       },
     })
 
-    if (task.assigneeId && task.assigneeId !== session.user.id) {
-      const notification = await prisma.notification.create({
-         data: {
-           title: "New Task Assigned",
-           body: `You were assigned to: ${task.title}`,
-           type: "TASK",
-           userId: task.assigneeId,
-         }
-      })
-      await pusherServer.trigger(`private-user-${task.assigneeId}`, "new_notification", notification)
+    if (assigneeIds && assigneeIds.length > 0) {
+      for (const assigneeId of assigneeIds) {
+        if (assigneeId !== session.user.id) {
+          const notification = await prisma.notification.create({
+             data: {
+               title: "New Task Assigned",
+               body: `You were assigned to: ${task.title}`,
+               type: "TASK",
+               userId: assigneeId,
+               link: `/dashboard/projects/${params.id}?task=${task.id}`
+             }
+          })
+          await pusherServer.trigger(`private-user-${assigneeId}`, "new_notification", notification)
+        }
+      }
     }
 
     return NextResponse.json(task)

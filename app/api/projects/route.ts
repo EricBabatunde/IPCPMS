@@ -27,18 +27,32 @@ export async function GET(req: Request) {
             },
           },
         },
-        _count: {
-          select: { tasks: true, milestones: true },
-        },
+        tasks: { select: { status: true } },
+        milestones: { select: { status: true } },
       },
       orderBy: { createdAt: "desc" },
     })
 
-    // Annotate each project with isMember flag
-    const annotated = projects.map((project) => ({
-      ...project,
-      isMember: project.members.some((m) => m.userId === session.user?.id),
-    }))
+    // Annotate each project with isMember flag and Completion Percentage
+    const annotated = projects.map((project) => {
+      const isMember = project.members.some((m) => m.userId === session.user?.id)
+
+      const totalTasks = project.tasks.length
+      const doneTasks = project.tasks.filter((t) => t.status === "DONE").length
+      const taskScore = totalTasks > 0 ? (doneTasks / totalTasks) * 70 : 0
+
+      const totalMilestones = project.milestones.length
+      const achievedMilestones = project.milestones.filter((m) => m.status === "ACHIEVED").length
+      const milestoneScore = totalMilestones > 0 ? (achievedMilestones / totalMilestones) * 30 : 0
+
+      const completionPercentage = Math.round(taskScore + milestoneScore)
+
+      return {
+        ...project,
+        isMember,
+        completionPercentage,
+      }
+    })
 
     return NextResponse.json(annotated)
   } catch (error) {
