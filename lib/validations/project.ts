@@ -7,6 +7,8 @@ export const createProjectSchema = z.object({
   startDate: z.string().datetime(),
   endDate: z.string().datetime().optional(),
   coverColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  courseCode: z.string().optional(),
+  projectType: z.string().optional(),
 })
 
 export const updateProjectSchema = createProjectSchema.partial()

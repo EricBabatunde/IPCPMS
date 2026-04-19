@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { createProjectSchema } from "@/lib/validations/project"
 import { ProjectStatus } from "@prisma/client"
+import { getTasksForType, getDescriptionForType } from "@/lib/project-templates"
 
 export async function GET(req: Request) {
   try {
@@ -73,14 +74,30 @@ export async function POST(req: Request) {
     const parsed = createProjectSchema.safeParse(projectData)
 
     if (!parsed.success) {
+      console.error("[PROJECTS_POST] Validation error:", parsed.error.flatten())
       return new NextResponse("Invalid Data", { status: 400 })
     }
 
-    // In Prisma transaction: Create Project + add creator as ADMIN + add selected members + log activity + create default group
+    const { courseCode, projectType, description, ...coreProjectData } = parsed.data
+
+    // Auto-generate description if not provided and a type is selected
+    const resolvedDescription =
+      description ||
+      (projectType ? getDescriptionForType(projectType) : undefined)
+
+    // Resolve tasks to seed from template
+    const templateTasks = projectType ? getTasksForType(projectType) : []
+    const taskDueDate = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000) // +60 days
+
+    // Run everything in a transaction
     const result = await prisma.$transaction(async (tx) => {
+      // 1. Create the project
       const project = await tx.project.create({
         data: {
-          ...parsed.data,
+          ...coreProjectData,
+          description: resolvedDescription,
+          courseCode: courseCode || null,
+          projectType: projectType || null,
           members: {
             create: {
               userId: session.user.id,
@@ -90,7 +107,7 @@ export async function POST(req: Request) {
         },
       })
 
-      // Create ProjectMember entries for each selected user (skip creator, already added)
+      // 2. Add additional members (skip creator, already added as ADMIN)
       const additionalMembers = (memberIds as string[] | undefined)?.filter(
         (id: string) => id !== session.user.id
       ) || []
@@ -105,17 +122,33 @@ export async function POST(req: Request) {
         })
       }
 
-      // Create activity log
+      // 3. Auto-seed template tasks
+      if (templateTasks.length > 0) {
+        await tx.task.createMany({
+          data: templateTasks.map((title, index) => ({
+            title,
+            description: null,
+            status: "TODO" as const,
+            priority: "MEDIUM" as const,
+            position: (index + 1) * 1024, // 1024, 2048, 3072…
+            projectId: project.id,
+            creatorId: session.user.id,
+            dueDate: taskDueDate,
+          })),
+        })
+      }
+
+      // 4. Create activity log
       await tx.activityLog.create({
         data: {
           userId: session.user.id,
           projectId: project.id,
           action: "created_project",
-          detail: `Created project ${project.name}`,
+          detail: `Created project ${project.name}${projectType ? ` (${projectType} template, ${templateTasks.length} tasks seeded)` : ""}`,
         },
       })
 
-      // Create linked group with all members
+      // 5. Create the linked project group with all members
       const group = await tx.group.create({
         data: {
           name: `${project.name} Team`,
@@ -129,7 +162,6 @@ export async function POST(req: Request) {
         },
       })
 
-      // Add additional members to the group as well
       if (additionalMembers.length > 0) {
         await tx.groupMember.createMany({
           data: additionalMembers.map((userId: string) => ({
@@ -140,10 +172,10 @@ export async function POST(req: Request) {
         })
       }
 
-      return project
+      return { project, tasksSeeded: templateTasks.length }
     })
 
-    return NextResponse.json(result)
+    return NextResponse.json(result.project)
   } catch (error) {
     console.error("[PROJECTS_POST]", error)
     return new NextResponse("Internal Error", { status: 500 })

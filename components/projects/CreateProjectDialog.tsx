@@ -5,7 +5,15 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query"
 import { format } from "date-fns"
-import { Calendar as CalendarIcon, Loader2, X, Check, ChevronsUpDown } from "lucide-react"
+import {
+  Calendar as CalendarIcon,
+  Loader2,
+  X,
+  Check,
+  ChevronsUpDown,
+  GraduationCap,
+  Sparkles,
+} from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -26,9 +34,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createProjectSchema, CreateProjectInput } from "@/lib/validations/project"
+import { COURSE_CODES, PROJECT_TYPES, getTasksForType } from "@/lib/project-templates"
 import { toast } from "sonner"
 
 interface User {
@@ -49,6 +65,11 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   const [selectedMembers, setSelectedMembers] = useState<User[]>([])
   const [memberSearchOpen, setMemberSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+
+  // Local state for the two new academic selectors (not connected to react-hook-form
+  // because they are simple strings, not validated fields)
+  const [courseCode, setCourseCode] = useState<string>("")
+  const [projectType, setProjectType] = useState<string>("")
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["users"],
@@ -96,6 +117,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
   const startDate = watch("startDate")
   const endDate = watch("endDate")
 
+  // How many tasks will be auto-seeded for the chosen type
+  const seedCount = projectType ? getTasksForType(projectType).length : 0
+
   const createMutation = useMutation({
     mutationFn: async (data: CreateProjectInput) => {
       const response = await fetch("/api/projects", {
@@ -103,6 +127,8 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
+          courseCode: courseCode || undefined,
+          projectType: projectType || undefined,
           memberIds: selectedMembers.map((m) => m.id),
         }),
       })
@@ -111,9 +137,15 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] })
-      toast.success("Project created", { description: "Your new project has been created successfully." })
+      const msg =
+        seedCount > 0
+          ? `Your new project has been created with ${seedCount} starter tasks in the Kanban board.`
+          : "Your new project has been created successfully."
+      toast.success("Project created", { description: msg })
       reset()
       setSelectedMembers([])
+      setCourseCode("")
+      setProjectType("")
       onOpenChange(false)
     },
     onError: () => {
@@ -129,31 +161,106 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>
             Enter the details for your new project and add team members.
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-4">
+          {/* Project Name */}
           <div className="space-y-2">
             <Label htmlFor="name">Project Name <span className="text-red-500">*</span></Label>
             <Input id="name" placeholder="E.g., Automated Material Handling" {...register("name")} />
             {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
           </div>
-          
+
+          {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">
+              Description
+              {projectType && (
+                <span className="ml-2 text-xs text-muted-foreground font-normal">
+                  (auto-filled if left blank)
+                </span>
+              )}
+            </Label>
             <Textarea
               id="description"
               placeholder="Describe the project goals and scope..."
               className="resize-none h-20"
               {...register("description")}
             />
-            {errors.description && <p className="text-sm text-destructive">{errors.description.message}</p>}
+            {errors.description && (
+              <p className="text-sm text-destructive">{errors.description.message}</p>
+            )}
           </div>
 
+          {/* ── Academic Context ─────────────────────────────────────── */}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/30">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <GraduationCap className="h-4 w-4 text-primary" />
+              Academic Context
+              <span className="text-xs font-normal text-muted-foreground ml-1">(optional)</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Course Code */}
+              <div className="space-y-2">
+                <Label>Course Code</Label>
+                <Select value={courseCode} onValueChange={setCourseCode}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select course…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {COURSE_CODES.map((code) => (
+                      <SelectItem key={code} value={code}>
+                        {code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Project Type */}
+              <div className="space-y-2">
+                <Label>Project Type</Label>
+                <Select value={projectType} onValueChange={setProjectType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="custom">Custom (no template)</SelectItem>
+                    {PROJECT_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Template info banner */}
+            {seedCount > 0 ? (
+              <div className="flex items-start gap-2 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2.5 text-sm">
+                <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <span className="text-slate-700 dark:text-slate-300">
+                  <span className="font-semibold text-primary">{seedCount} starter tasks</span> will be
+                  auto-populated in your Kanban board when this project is created.
+                </span>
+              </div>
+            ) : projectType && projectType !== "custom" ? null : (
+              <p className="text-xs text-muted-foreground">
+                Selecting a Project Type will auto-populate engineering tasks in your Kanban board.
+              </p>
+            )}
+          </div>
+
+          {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2 flex flex-col">
               <Label>Start Date <span className="text-red-500">*</span></Label>
@@ -171,7 +278,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                   <Calendar
                     mode="single"
                     selected={startDate ? new Date(startDate) : undefined}
-                    onSelect={(date) => setValue("startDate", date?.toISOString() || "", { shouldValidate: true })}
+                    onSelect={(date) =>
+                      setValue("startDate", date?.toISOString() || "", { shouldValidate: true })
+                    }
                     initialFocus
                   />
                 </PopoverContent>
@@ -195,7 +304,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                   <Calendar
                     mode="single"
                     selected={endDate ? new Date(endDate) : undefined}
-                    onSelect={(date) => setValue("endDate", date?.toISOString() || undefined, { shouldValidate: true })}
+                    onSelect={(date) =>
+                      setValue("endDate", date?.toISOString() || undefined, { shouldValidate: true })
+                    }
                     initialFocus
                   />
                 </PopoverContent>
@@ -208,7 +319,6 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
             <Label>Team Members</Label>
             <p className="text-xs text-muted-foreground">You will be added as Admin automatically.</p>
 
-            {/* Selected members badges */}
             {selectedMembers.length > 0 && (
               <div className="flex flex-wrap gap-1.5 pb-1">
                 {selectedMembers.map((member) => (
@@ -226,7 +336,6 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
               </div>
             )}
 
-            {/* Searchable dropdown */}
             <Popover open={memberSearchOpen} onOpenChange={setMemberSearchOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -252,9 +361,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                 <ScrollArea className="max-h-[30vh] sm:max-h-[200px]">
                   <div className="p-1">
                     {filteredUsers.length === 0 ? (
-                      <div className="py-4 text-center text-sm text-muted-foreground">
-                        No users found.
-                      </div>
+                      <div className="py-4 text-center text-sm text-muted-foreground">No users found.</div>
                     ) : (
                       filteredUsers.map((user) => {
                         const isSelected = selectedMembers.some((m) => m.id === user.id)
@@ -284,7 +391,9 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
           </div>
 
           <DialogFooter className="pt-4">
-            <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Project

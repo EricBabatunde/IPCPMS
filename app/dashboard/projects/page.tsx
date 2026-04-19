@@ -6,7 +6,7 @@ import { useState, useMemo } from "react"
 import Link from "next/link"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
-  Plus, FolderKanban, MoreVertical, Calendar, Archive, Trash2, Edit, UserPlus, Loader2
+  Plus, FolderKanban, MoreVertical, Calendar, Archive, Trash2, Edit, UserPlus, Loader2, GraduationCap
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/shared/EmptyState"
 import { CreateProjectDialog } from "@/components/projects/CreateProjectDialog"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
 import {
   DropdownMenu,
@@ -162,9 +163,17 @@ export default function ProjectsPage() {
           </CardContent>
         )}
         <CardFooter className="p-4 pt-2 border-t border-slate-100 dark:border-slate-800/60 mt-2 flex items-center justify-between text-xs text-slate-500">
-          <div className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>{format(new Date(project.startDate), "MMM d, yyyy")}</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>{format(new Date(project.startDate), "MMM d, yyyy")}</span>
+            </div>
+            {project.courseCode && project.courseCode !== "none" && (
+              <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-semibold border-primary/30 text-primary bg-primary/5">
+                <GraduationCap className="h-3 w-3" />
+                {project.courseCode}
+              </Badge>
+            )}
           </div>
           <div className="flex -space-x-2">
             {project.members?.slice(0, 3).map((member: any) => (

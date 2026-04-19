@@ -4,7 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useParams } from "next/navigation"
-import { LayoutDashboard, ListTodo, Map, FolderOpen, Loader2 } from "lucide-react"
+import { LayoutDashboard, ListTodo, Map, FolderOpen, Loader2, GraduationCap } from "lucide-react"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PageHeader } from "@/components/shared/PageHeader"
@@ -55,6 +55,12 @@ export default function ProjectDetailPage() {
         <Badge variant={project.status === "COMPLETED" ? "default" : "secondary"} className="uppercase">
           {project.status.replace("_", " ")}
         </Badge>
+        {project.courseCode && project.courseCode !== "none" && (
+          <Badge variant="outline" className="gap-1.5 border-primary/30 text-primary bg-primary/5">
+            <GraduationCap className="h-3.5 w-3.5" />
+            {project.courseCode}
+          </Badge>
+        )}
       </PageHeader>
 
       <Tabs defaultValue="board" className="flex-1 flex flex-col min-h-0">

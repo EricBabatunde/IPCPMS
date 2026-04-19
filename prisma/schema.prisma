@@ -115,6 +115,8 @@ model Project {
   startDate   DateTime
   endDate     DateTime?
   coverColor  String        @default("#2563eb")
+  courseCode  String?
+  projectType String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
