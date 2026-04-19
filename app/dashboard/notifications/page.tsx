@@ -25,19 +25,18 @@ export default function NotificationsPage() {
       <PageHeader 
         title="Notifications" 
         description="Stay updated with the latest activity across your projects."
-        action={
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => markAllAsRead.mutate()}
-            disabled={notifications.every(n => n.read) || markAllAsRead.isPending}
-            className="hidden sm:flex"
-          >
-            {markAllAsRead.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-            Mark all as read
-          </Button>
-        }
-      />
+      >
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => markAllAsRead.mutate()}
+          disabled={notifications.every(n => n.read) || markAllAsRead.isPending}
+          className="hidden sm:flex"
+        >
+          {markAllAsRead.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+          Mark all as read
+        </Button>
+      </PageHeader>
 
       {isLoading ? (
         <div className="flex justify-center p-12">

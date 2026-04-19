@@ -1,31 +1,29 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import {
-  DndContext,
-  DragOverlay,
-  closestCorners,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragStartEvent,
-  DragOverEvent,
-  DragEndEvent,
-} from "@dnd-kit/core"
-import {
-  arrayMove,
-  sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable"
+import { DragDropContext, DropResult } from "@hello-pangea/dnd"
 import { TaskStatus } from "@prisma/client"
 
-import { Column } from "./KanbanColumn"
-import { TaskCard } from "./TaskCard"
+import { KanbanColumn } from "./KanbanColumn"
 import { TaskDetailSheet } from "./TaskDetailSheet"
 import { CreateTaskModal } from "./CreateTaskModal"
 
-interface Task {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface Assignee {
+  id: string
+  name: string
+  image: string | null
+}
+
+export interface TaskTag {
+  id: string
+  label: string
+  color: string
+}
+
+export interface KanbanTask {
   id: string
   title: string
   description: string | null
@@ -33,206 +31,245 @@ interface Task {
   priority: string
   position: number
   dueDate: string | null
-  assignee?: { id: string; name: string; image: string | null } | null
-  tags: { id: string; name: string; color: string }[]
+  completedAt: string | null
+  projectId: string
+  creatorId: string
+  assignees: Assignee[]
+  tags: TaskTag[]
   _count: { comments: number }
 }
 
-const COLUMNS = [
-  { id: "TODO", title: "To Do" },
-  { id: "IN_PROGRESS", title: "In Progress" },
-  { id: "IN_REVIEW", title: "Review" },
-  { id: "DONE", title: "Done" },
+// ─── Column Config ────────────────────────────────────────────────────────────
+
+export const COLUMNS: { id: TaskStatus; title: string; accentColor: string }[] = [
+  { id: "TODO",        title: "To Do",       accentColor: "#3b82f6" }, // blue
+  { id: "IN_PROGRESS", title: "In Progress", accentColor: "#f59e0b" }, // amber
+  { id: "IN_REVIEW",   title: "In Review",   accentColor: "#8b5cf6" }, // violet
+  { id: "DONE",        title: "Done",        accentColor: "#22c55e" }, // green
 ]
+
+// ─── Positioning helpers ──────────────────────────────────────────────────────
+
+function calcNewPosition(columnTasks: KanbanTask[], destinationIndex: number): number {
+  const sorted = [...columnTasks].sort((a, b) => a.position - b.position)
+
+  if (sorted.length === 0) return 1024
+
+  // Dropped at the top
+  if (destinationIndex === 0) {
+    return sorted[0].position - 1024
+  }
+
+  // Dropped at the bottom (after the last item)
+  if (destinationIndex >= sorted.length) {
+    return sorted[sorted.length - 1].position + 1024
+  }
+
+  // Dropped between two tasks
+  const above = sorted[destinationIndex - 1]
+  const below = sorted[destinationIndex]
+  return (above.position + below.position) / 2
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export function KanbanBoard({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient()
-  const [activeTask, setActiveTask] = useState<Task | null>(null)
-  const [selectedTaskForSheet, setSelectedTaskForSheet] = useState<Task | null>(null)
+
+  // Local UI state
+  const [tasks, setTasks] = useState<KanbanTask[]>([])
+  const [selectedTask, setSelectedTask] = useState<KanbanTask | null>(null)
   const [createTaskColumn, setCreateTaskColumn] = useState<string | null>(null)
 
-  const { data: serverTasks = [], isLoading } = useQuery({
+  // "Source of Truth" lock — prevents the server-sync useEffect from
+  // overwriting optimistic state while a mutation is in-flight.
+  const isMutatingRef = useRef(false)
+
+  // ── Server Fetch ────────────────────────────────────────────────────────────
+  const { data: serverTasks = [], isLoading } = useQuery<KanbanTask[]>({
     queryKey: ["projects", projectId, "tasks"],
     queryFn: async () => {
       const res = await fetch(`/api/projects/${projectId}/tasks`)
       if (!res.ok) throw new Error("Failed to fetch tasks")
-      return res.json() as Promise<Task[]>
+      return res.json()
     },
+    // Keep data fresh but not too aggressive during D&D sessions
+    staleTime: 30_000,
   })
 
+  // ── Sync server → local (guarded by isMutatingRef) ─────────────────────────
+  useEffect(() => {
+    if (!isMutatingRef.current) {
+      setTasks([...serverTasks].sort((a, b) => a.position - b.position))
+    }
+  }, [serverTasks])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
-
+  // ── Mutation ────────────────────────────────────────────────────────────────
   const updateTaskMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Task> }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string
+      data: Partial<KanbanTask> & { completedAt?: string | null }
+    }) => {
       const res = await fetch(`/api/tasks/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       })
       if (!res.ok) throw new Error("Failed to update task")
-      return res.json()
+      return res.json() as Promise<KanbanTask>
     },
+
     onMutate: async ({ id, data }) => {
+      // Acquire lock immediately (synchronous)
+      isMutatingRef.current = true
+
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: ["projects", projectId, "tasks"] })
-      const previousTasks = queryClient.getQueryData<Task[]>(["projects", projectId, "tasks"])
-      
-      queryClient.setQueryData<Task[]>(["projects", projectId, "tasks"], (old) => {
-        if (!old) return old
-        return old.map(t => t.id === id ? { ...t, ...data } : t)
-      })
+
+      // Snapshot for rollback
+      const previousTasks = queryClient.getQueryData<KanbanTask[]>([
+        "projects",
+        projectId,
+        "tasks",
+      ])
+
+      // Update the cache snapshot too (so DevTools stay consistent)
+      queryClient.setQueryData<KanbanTask[]>(
+        ["projects", projectId, "tasks"],
+        (old) => old?.map((t) => (t.id === id ? { ...t, ...data } : t)) ?? old
+      )
 
       return { previousTasks }
     },
-    onError: (err, newTodo, context) => {
+
+    onError: (_err, _vars, context) => {
+      // Roll back on failure
       if (context?.previousTasks) {
-        queryClient.setQueryData(["projects", projectId, "tasks"], context.previousTasks)
+        queryClient.setQueryData(
+          ["projects", projectId, "tasks"],
+          context.previousTasks
+        )
+        setTasks(
+          [...context.previousTasks].sort((a, b) => a.position - b.position)
+        )
       }
     },
+
+    onSuccess: (updatedTask) => {
+      // Merge the authoritative server response into local state
+      setTasks((prev) =>
+        prev.map((t) => (t.id === updatedTask.id ? { ...t, ...updatedTask } : t))
+      )
+    },
+
     onSettled: () => {
+      // Release lock, then let the next query sync take over
+      isMutatingRef.current = false
       queryClient.invalidateQueries({ queryKey: ["projects", projectId, "tasks"] })
     },
   })
 
-  // Optimistic tasks state
-  const [tasks, setTasks] = useState<Task[]>([])
+  // ── Drag End Handler ────────────────────────────────────────────────────────
+  const handleDragEnd = useCallback(
+    (result: DropResult) => {
+      const { source, destination, draggableId } = result
 
-  // Sync server state with local state when serverTasks arrive (Guard against overwriting when dragging)
-  useEffect(() => {
-    if (!activeTask && !updateTaskMutation.isPending) {
-      setTasks([...serverTasks].sort((a, b) => a.position - b.position))
-    }
-  }, [serverTasks, activeTask, updateTaskMutation.isPending])
+      // Dropped outside any droppable zone
+      if (!destination) return
 
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event
-    const task = tasks.find((t) => t.id === active.id)
-    if (task) setActiveTask(task)
-  }
+      const sourceCol = source.droppableId as TaskStatus
+      const destCol = destination.droppableId as TaskStatus
+      const sourceIdx = source.index
+      const destIdx = destination.index
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event
-    if (!over) return
+      // No movement
+      if (sourceCol === destCol && sourceIdx === destIdx) return
 
-    const activeId = active.id
-    const overId = over.id
-
-    if (activeId === overId) return
-
-    const isActiveTask = active.data.current?.type === "Task"
-    const isOverTask = over.data.current?.type === "Task"
-    const isOverColumn = over.data.current?.type === "Column"
-
-    if (!isActiveTask) return
-
-    // Dropping a task over another task
-    if (isActiveTask && isOverTask) {
+      // Atomically compute new state
       setTasks((prev) => {
-        const activeIndex = prev.findIndex((t) => t.id === activeId)
-        const overIndex = prev.findIndex((t) => t.id === overId)
+        const sorted = [...prev].sort((a, b) => a.position - b.position)
 
-        if (prev[activeIndex].status !== prev[overIndex].status) {
-          const newTasks = [...prev]
-          newTasks[activeIndex] = { ...newTasks[activeIndex], status: prev[overIndex].status }
-          return arrayMove(newTasks, activeIndex, overIndex)
+        // Pull the dragged task
+        const draggedTask = sorted.find((t) => t.id === draggableId)
+        if (!draggedTask) return prev
+
+        // Build destination column task list (excluding the dragged task)
+        const destColTasks = sorted
+          .filter((t) => t.status === destCol && t.id !== draggableId)
+          .sort((a, b) => a.position - b.position)
+
+        const newPosition = calcNewPosition(destColTasks, destIdx)
+
+        // Optimistic completedAt
+        let optimisticCompletedAt = draggedTask.completedAt
+        if (destCol === "DONE" && sourceCol !== "DONE") {
+          optimisticCompletedAt = new Date().toISOString()
+        } else if (destCol !== "DONE" && sourceCol === "DONE") {
+          optimisticCompletedAt = null
         }
 
-        return arrayMove(prev, activeIndex, overIndex)
+        const updatedTask: KanbanTask = {
+          ...draggedTask,
+          status: destCol,
+          position: newPosition,
+          completedAt: optimisticCompletedAt,
+        }
+
+        // Fire the mutation (the ref lock is set inside onMutate)
+        updateTaskMutation.mutate({
+          id: draggableId,
+          data: {
+            status: destCol,
+            position: newPosition,
+          },
+        })
+
+        return sorted.map((t) => (t.id === draggableId ? updatedTask : t))
       })
-    }
+    },
+    [updateTaskMutation]
+  )
 
-    // Dropping a task over a column directly (empty column)
-    if (isActiveTask && isOverColumn) {
-      setTasks((prev) => {
-        const activeIndex = prev.findIndex((t) => t.id === activeId)
-        const newTasks = [...prev]
-        newTasks[activeIndex] = { ...newTasks[activeIndex], status: overId as TaskStatus }
-        return arrayMove(newTasks, activeIndex, activeIndex)
-      })
-    }
-  }
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveTask(null)
-    const { active, over } = event
-    if (!over) return
-
-    const activeId = active.id as string
-    const overId = over.id as string
-
-    if (activeId === overId) return
-
-    const activeIndex = tasks.findIndex((t) => t.id === activeId)
-
-    if (activeIndex !== -1) {
-      const currentTask = tasks[activeIndex]
-      const targetColumn = currentTask.status
-
-      const columnTasks = tasks.filter((t) => t.status === targetColumn)
-      const taskIndexInColumn = columnTasks.findIndex((t) => t.id === activeId)
-
-      let newPosition = 1024
-      if (columnTasks.length === 1) {
-        newPosition = 1024
-      } else if (taskIndexInColumn === 0) {
-        newPosition = Math.max(1, Math.round(columnTasks[1].position / 2))
-        if (newPosition >= columnTasks[1].position) newPosition = columnTasks[1].position - 1
-      } else if (taskIndexInColumn === columnTasks.length - 1) {
-        newPosition = columnTasks[taskIndexInColumn - 1].position + 1024
-      } else {
-        const prevPos = columnTasks[taskIndexInColumn - 1].position
-        const nextPos = columnTasks[taskIndexInColumn + 1].position
-        newPosition = Math.round((prevPos + nextPos) / 2)
-        if (newPosition <= prevPos) newPosition = prevPos + 1
-        if (newPosition >= nextPos) newPosition = nextPos - 1
-      }
-
-      // Sync to DB
-      updateTaskMutation.mutate({
-        id: currentTask.id,
-        data: { status: currentTask.status, position: newPosition },
-      })
-    }
-  }
-
+  // ── Render ──────────────────────────────────────────────────────────────────
   if (isLoading) {
-    return <div className="h-96 flex items-center justify-center">Loading board...</div>
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground animate-pulse">Loading board…</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <>
-      <div className="flex h-full gap-4 overflow-x-auto pb-4">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-        >
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="flex h-full gap-4 overflow-x-auto pb-6 pr-2">
           {COLUMNS.map((col) => (
-            <Column
+            <KanbanColumn
               key={col.id}
               column={col}
-              tasks={tasks.filter((task) => task.status === col.id)}
-              onTaskClick={(task) => setSelectedTaskForSheet(task)}
+              tasks={tasks
+                .filter((t) => t.status === col.id)
+                .sort((a, b) => a.position - b.position)}
+              onTaskClick={(task) => setSelectedTask(task)}
               onAddTask={(status) => setCreateTaskColumn(status)}
             />
           ))}
+        </div>
+      </DragDropContext>
 
-          <DragOverlay>
-            {activeTask ? <TaskCard task={activeTask} /> : null}
-          </DragOverlay>
-        </DndContext>
-      </div>
-
-      {selectedTaskForSheet && (
+      {selectedTask && (
         <TaskDetailSheet
-          task={selectedTaskForSheet}
-          open={!!selectedTaskForSheet}
-          onOpenChange={(open) => !open && setSelectedTaskForSheet(null)}
+          task={selectedTask}
+          open={!!selectedTask}
+          onOpenChange={(open) => {
+            if (!open) setSelectedTask(null)
+          }}
         />
       )}
 

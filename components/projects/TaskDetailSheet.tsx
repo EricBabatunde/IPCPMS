@@ -113,14 +113,23 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
           </div>
 
           <div className="flex flex-wrap gap-4 py-4 text-sm">
+            {/* Assignees (multi) */}
             <div className="space-y-1">
-              <span className="text-xs text-slate-500">Assignee</span>
-              <div className="flex items-center gap-2 font-medium">
-                {task.assignee && <UserAvatar user={task.assignee} className="h-6 w-6" />}
-                {task.assignee?.name || "Unassigned"}
-              </div>
+              <span className="text-xs text-slate-500">Assignees</span>
+              {task.assignees && task.assignees.length > 0 ? (
+                <div className="flex flex-col gap-1.5">
+                  {task.assignees.map((assignee: any) => ( // eslint-disable-line @typescript-eslint/no-explicit-any
+                    <div key={assignee.id} className="flex items-center gap-2 font-medium">
+                      <UserAvatar user={assignee} className="h-6 w-6" />
+                      <span className="text-sm">{assignee.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="font-medium text-slate-400">Unassigned</div>
+              )}
             </div>
-            
+
             <div className="space-y-1">
               <span className="text-xs text-slate-500">Due Date</span>
               <div className="flex items-center gap-2 font-medium">
@@ -132,10 +141,26 @@ export function TaskDetailSheet({ task, open, onOpenChange }: TaskDetailSheetPro
             <div className="space-y-1">
               <span className="text-xs text-slate-500">Priority</span>
               <div className="flex items-center gap-2 font-medium">
-                <Flag className={`h-4 w-4 ${task.priority === "HIGH" ? "text-red-500" : task.priority === "MEDIUM" ? "text-blue-500" : "text-slate-500"}`} />
+                <Flag className={`h-4 w-4 ${
+                  task.priority === "CRITICAL" ? "text-red-600" :
+                  task.priority === "HIGH"     ? "text-orange-500" :
+                  task.priority === "MEDIUM"   ? "text-blue-500" :
+                                                "text-slate-400"
+                }`} />
                 <span className="capitalize">{task.priority.toLowerCase()}</span>
               </div>
             </div>
+
+            {/* Completed At — only visible when task is DONE */}
+            {task.completedAt && (
+              <div className="space-y-1">
+                <span className="text-xs text-slate-500">Completed on</span>
+                <div className="flex items-center gap-2 font-medium text-green-600 dark:text-green-400">
+                  <Calendar className="h-4 w-4" />
+                  {format(new Date(task.completedAt), "MMM d, yyyy 'at' h:mm a")}
+                </div>
+              </div>
+            )}
           </div>
         </SheetHeader>
 

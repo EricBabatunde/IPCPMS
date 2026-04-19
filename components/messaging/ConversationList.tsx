@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
-
-import { useQuery } from "@tanstack/react-query"
+import { useState, useEffect } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Hash, Loader2, MessageSquarePlus } from "lucide-react"
+import type { Channel } from "pusher-js"
 
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
@@ -11,8 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserAvatar } from "@/components/shared/UserAvatar"
 import { usePresence } from "@/hooks/usePresence"
 import { StartConversationModal } from "./StartConversationModal"
-import { useEffect } from "react"
-import { useQueryClient } from "@tanstack/react-query"
 import { getPusherClient } from "@/lib/pusher-client"
 
 interface ConversationListProps {
@@ -24,6 +22,9 @@ interface ConversationListProps {
 export function ConversationList({ currentUserId, activeChannelId, onSelectChannel }: ConversationListProps) {
   const [modalOpen, setModalOpen] = useState(false)
 
+  // MUST be at component level — never call useQueryClient() inside a useEffect callback
+  const queryClient = useQueryClient()
+
   const { data: conversations, isLoading: isLoadingDMs } = useQuery({
     queryKey: ["conversations"],
     queryFn: async () => {
@@ -33,7 +34,6 @@ export function ConversationList({ currentUserId, activeChannelId, onSelectChann
     },
   })
 
-  // Group queries to check membership
   const { data: groups, isLoading: isLoadingGroups } = useQuery({
     queryKey: ["groups"],
     queryFn: async () => {
@@ -43,65 +43,53 @@ export function ConversationList({ currentUserId, activeChannelId, onSelectChann
     },
   })
 
+  // Subscribe to all DM channels so the sidebar refreshes on new messages.
+  // We use invalidateQueries instead of manual setQueryData to avoid the
+  // stale-closure problem with queryClient inside callbacks.
   useEffect(() => {
     if (!currentUserId || !conversations) return
     const pusherClient = getPusherClient()
-    
-    const mappedChannels = conversations.map((c: any) => pusherClient.subscribe(`private-conversation-${c.id}`))
-    
-    mappedChannels.forEach((channel) => {
-      channel.bind("new-message", (msg: any) => {
-        const queryClient = useQueryClient()
-        queryClient.setQueryData(["conversations"], (old: any) => {
-          if (!old) return old
-          return old.map((c: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if (c.id === msg.conversationId || c.id === channel.name.replace('private-conversation-', '')) {
-              return { ...c, messages: [msg, ...(c.messages || [])] }
-            }
-            return c
-          })
-        })
+
+    const channels: Channel[] = (conversations as any[]).map((c: any) => // eslint-disable-line @typescript-eslint/no-explicit-any
+      pusherClient.subscribe(`private-conversation-${c.id}`)
+    )
+
+    channels.forEach((channel: Channel) => {
+      channel.bind("new-message", () => {
+        queryClient.invalidateQueries({ queryKey: ["conversations"] })
       })
     })
 
     return () => {
-      mappedChannels.forEach((channel) => {
-        channel.unbind("new-message")
+      channels.forEach((channel: Channel) => {
+        channel.unbind_all()
         pusherClient.unsubscribe(channel.name)
       })
     }
-  }, [currentUserId, conversations])
+  }, [currentUserId, conversations, queryClient])
 
+  // Subscribe to all group channels for the sidebar badge
   useEffect(() => {
     if (!currentUserId || !groups) return
     const pusherClient = getPusherClient()
-    
-    const mappedChannels = groups.map((g: any) => pusherClient.subscribe(`private-group-${g.id}`))
-    
-    mappedChannels.forEach((channel) => {
-      channel.bind("new-group-message", (msg: any) => {
-        const queryClient = useQueryClient()
-        queryClient.setQueryData(["groups"], (old: any) => {
-          if (!old) return old
-          return old.map((g: any) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if (g.id === msg.groupId || g.id === channel.name.replace('private-group-', '')) {
-              return { ...g, messages: [msg, ...(g.messages || [])] }
-            }
-            return g
-          })
-        })
+
+    const channels: Channel[] = (groups as any[]).map((g: any) => // eslint-disable-line @typescript-eslint/no-explicit-any
+      pusherClient.subscribe(`private-group-${g.id}`)
+    )
+
+    channels.forEach((channel: Channel) => {
+      channel.bind("new-group-message", () => {
+        queryClient.invalidateQueries({ queryKey: ["groups"] })
       })
     })
 
     return () => {
-      mappedChannels.forEach((channel) => {
-        channel.unbind("new-group-message")
+      channels.forEach((channel: Channel) => {
+        channel.unbind_all()
         pusherClient.unsubscribe(channel.name)
       })
     }
-  }, [currentUserId, groups])
+  }, [currentUserId, groups, queryClient])
 
   return (
     <div className="flex h-full w-full sm:w-80 flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
@@ -124,13 +112,11 @@ export function ConversationList({ currentUserId, activeChannelId, onSelectChann
           <TabsContent value="direct" className="m-0 space-y-1">
             {isLoadingDMs ? (
               <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-slate-400" /></div>
-            ) : conversations?.length === 0 ? (
+            ) : (conversations as any[])?.length === 0 ? ( // eslint-disable-line @typescript-eslint/no-explicit-any
               <p className="text-sm text-center text-slate-500 py-4">No conversations yet</p>
             ) : (
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              conversations?.map((conv: any) => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const otherMember = conv.members.find((m: any) => m.userId !== currentUserId)?.user
+              (conversations as any[])?.map((conv: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+                const otherMember = conv.members.find((m: any) => m.userId !== currentUserId)?.user // eslint-disable-line @typescript-eslint/no-explicit-any
                 if (!otherMember) return null
 
                 const lastMessage = conv.messages?.[0]
@@ -140,7 +126,7 @@ export function ConversationList({ currentUserId, activeChannelId, onSelectChann
                   <button
                     key={conv.id}
                     onClick={() => onSelectChannel(conv.id, false, otherMember.name)}
-                    className={`w-full flex items-center gap-3 p-3 text-left rounded-lg transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}
+                    className={`w-full flex items-center gap-3 p-3 text-left rounded-lg transition-colors ${isActive ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800/50"}`}
                   >
                     <div className="relative">
                       <UserAvatar user={otherMember} className="h-10 w-10" />
@@ -161,11 +147,10 @@ export function ConversationList({ currentUserId, activeChannelId, onSelectChann
           <TabsContent value="groups" className="m-0 space-y-1">
             {isLoadingGroups ? (
               <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-slate-400" /></div>
-            ) : groups?.length === 0 ? (
+            ) : (groups as any[])?.length === 0 ? ( // eslint-disable-line @typescript-eslint/no-explicit-any
               <p className="text-sm text-center text-slate-500 py-4">No groups yet</p>
             ) : (
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              groups?.map((group: any) => {
+              (groups as any[])?.map((group: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
                 const lastMessage = group.messages?.[0]
                 const isActive = activeChannelId === group.id
 
@@ -173,7 +158,7 @@ export function ConversationList({ currentUserId, activeChannelId, onSelectChann
                   <button
                     key={group.id}
                     onClick={() => onSelectChannel(group.id, true, group.name)}
-                    className={`w-full flex items-center gap-3 p-3 text-left rounded-lg transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}
+                    className={`w-full flex items-center gap-3 p-3 text-left rounded-lg transition-colors ${isActive ? "bg-primary/10 text-primary" : "hover:bg-slate-100 dark:hover:bg-slate-800/50"}`}
                   >
                     <div className="h-10 w-10 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 flex-shrink-0">
                       <Hash className="h-5 w-5" />

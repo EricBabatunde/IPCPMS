@@ -27,13 +27,23 @@ export async function PATCH(
     }
 
     const { assigneeIds, ...taskData } = parsed.data;
-    
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: any = { ...taskData };
+
+    // Auto-manage completedAt based on status transition
+    if (parsed.data.status) {
+      if (parsed.data.status === "DONE" && task.status !== "DONE") {
+        updateData.completedAt = new Date()
+      } else if (parsed.data.status !== "DONE" && task.status === "DONE") {
+        updateData.completedAt = null
+      }
+    }
+
     if (assigneeIds !== undefined) {
-       updateData.assignees = {
-          set: assigneeIds.map((id: string) => ({ id }))
-       };
+      updateData.assignees = {
+        set: assigneeIds.map((id: string) => ({ id })),
+      };
     }
 
     const updatedTask = await prisma.task.update({
@@ -46,30 +56,34 @@ export async function PATCH(
       }
     })
 
-    // Log if status changed
-    if (parsed.data.status && parsed.data.status !== task.status) {
+    const statusChanged = parsed.data.status && parsed.data.status !== task.status
+    const positionChanged = parsed.data.position !== undefined && parsed.data.position !== task.position
+
+    // Log all board moves (status OR position changes)
+    if (statusChanged || positionChanged) {
       await prisma.activityLog.create({
         data: {
           userId: session.user.id,
           projectId: task.projectId,
           action: "updated_task",
-          detail: `Moved task "${task.title}" to ${parsed.data.status}`,
+          detail: statusChanged
+            ? `Moved task "${task.title}" to ${parsed.data.status}`
+            : `Reordered task "${task.title}" in ${task.status}`,
         },
       })
     }
 
-    if ((parsed.data.status && parsed.data.status !== task.status) || (parsed.data.position !== undefined && parsed.data.position !== task.position)) {
+    if (statusChanged || positionChanged) {
       const projectMembers = await prisma.projectMember.findMany({
         where: { projectId: task.projectId, role: "ADMIN" }
       })
-      
+
       const notifyUsers = new Set<string>()
       projectMembers.forEach(m => notifyUsers.add(m.userId))
       if (task.creatorId) notifyUsers.add(task.creatorId)
-      
       notifyUsers.delete(session.user.id)
 
-      for (const uid of notifyUsers) {
+      for (const uid of Array.from(notifyUsers)) {
         const notification = await prisma.notification.create({
           data: {
             title: "Task Updated",

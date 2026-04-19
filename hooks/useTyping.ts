@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { getPusherClient } from "@/lib/pusher-client"
 
 interface UseTypingProps {
@@ -16,25 +16,30 @@ export function useTyping({ channelName, currentUserId, currentUserName }: UseTy
     const pusherClient = getPusherClient()
     const channel = pusherClient.subscribe(channelName)
 
-    channel.bind("client-typing", (data: { userId: string; userName: string }) => {
+    const handleTyping = (data: { userId: string; userName: string }) => {
       if (data.userId !== currentUserId) {
         setTypingUsers((prev) => ({ ...prev, [data.userId]: data.userName }))
       }
-    })
+    }
 
-    channel.bind("client-stop-typing", (data: { userId: string }) => {
+    const handleStopTyping = (data: { userId: string }) => {
       if (data.userId !== currentUserId) {
         setTypingUsers((prev) => {
-          const newState = { ...prev }
-          delete newState[data.userId]
-          return newState
+          const next = { ...prev }
+          delete next[data.userId]
+          return next
         })
       }
-    })
+    }
+
+    channel.bind("client-typing", handleTyping)
+    channel.bind("client-stop-typing", handleStopTyping)
 
     return () => {
-      channel.unbind("client-typing")
-      channel.unbind("client-stop-typing")
+      // Unbind the specific handlers, then fully release the channel
+      channel.unbind("client-typing", handleTyping)
+      channel.unbind("client-stop-typing", handleStopTyping)
+      pusherClient.unsubscribe(channelName)
     }
   }, [channelName, currentUserId])
 
