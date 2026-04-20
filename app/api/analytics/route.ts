@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { format, subDays, startOfDay, isBefore } from "date-fns"
 
+export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   try {
     const session = await auth()

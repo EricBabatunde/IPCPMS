@@ -3,6 +3,8 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { isBefore } from "date-fns"
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/projects/[id]/analytics
  *

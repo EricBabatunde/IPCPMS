@@ -5,6 +5,7 @@ import { NextResponse } from "next/server"
 
 const MESSAGES_BATCH = 30
 
+export const dynamic = 'force-dynamic';
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }
@@ -121,10 +122,10 @@ export async function POST(
     const groupMembers = await prisma.groupMember.findMany({
       where: { groupId }
     })
-    
+
     for (const m of groupMembers) {
       if (m.userId === session!.user!.id) continue
-      
+
       const notification = await prisma.notification.create({
         data: {
           title: `New message in group`,

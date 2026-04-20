@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { pusherServer } from "@/lib/pusher"
 import { NextResponse } from "next/server"
 
+export const dynamic = 'force-dynamic';
+
 const MESSAGES_BATCH = 30
 
 export async function GET(

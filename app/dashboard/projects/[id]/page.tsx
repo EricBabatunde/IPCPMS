@@ -2,8 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useState, useEffect } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { getPusherClient } from "@/lib/pusher-client"
 import { useParams } from "next/navigation"
 import {
   LayoutDashboard, ListTodo, Map, FolderOpen, Loader2, GraduationCap, BookOpen,
@@ -41,6 +42,7 @@ const PIE_LABEL_MIN_PCT = 0.08
 export default function ProjectDetailPage() {
   const params = useParams()
   const projectId = params.id as string
+  const queryClient = useQueryClient()
 
   // Task detail sheet state — for Gantt task click
   const [sheetTask, setSheetTask] = useState<any | null>(null)
@@ -65,7 +67,37 @@ export default function ProjectDetailPage() {
       return res.json()
     },
     enabled: !!projectId,
+    refetchOnWindowFocus: true,
   })
+
+  // ── Real-Time Analytics Sync ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!projectId) return
+
+    const pusher = getPusherClient()
+    const channelName = `private-project-${projectId}`
+    
+    // Subscribe to the project channel
+    const channel = pusher.subscribe(channelName)
+
+    const handleAnalyticsUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ["projectAnalytics", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["projects", projectId, "tasks"] })
+    }
+
+    channel.bind("task-updated", handleAnalyticsUpdate)
+    channel.bind("task-deleted", handleAnalyticsUpdate)
+    channel.bind("milestone-updated", handleAnalyticsUpdate)
+    channel.bind("milestone-deleted", handleAnalyticsUpdate)
+
+    return () => {
+      channel.unbind("task-updated", handleAnalyticsUpdate)
+      channel.unbind("task-deleted", handleAnalyticsUpdate)
+      channel.unbind("milestone-updated", handleAnalyticsUpdate)
+      channel.unbind("milestone-deleted", handleAnalyticsUpdate)
+      pusher.unsubscribe(channelName)
+    }
+  }, [projectId, queryClient])
 
   // ── Task fetch (for Gantt task sheet lookup) ────────────────────────────────
   const { data: allTasks = [] } = useQuery({

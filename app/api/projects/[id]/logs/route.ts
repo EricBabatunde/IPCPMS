@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { pusherServer } from "@/lib/pusher"
 import { z } from "zod"
 
+export const dynamic = 'force-dynamic';
+
 const createLogSchema = z.object({
   content: z.string().min(1).max(2000),
   type: z.enum(["POSITIVE", "NEUTRAL", "NEGATIVE"]),

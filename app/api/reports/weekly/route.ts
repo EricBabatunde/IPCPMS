@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { pusherServer } from "@/lib/pusher"
 import { subDays, format } from "date-fns"
 
+export const dynamic = 'force-dynamic';
 /**
  * GET /api/reports/weekly
  *

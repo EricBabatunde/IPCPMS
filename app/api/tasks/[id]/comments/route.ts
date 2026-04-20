@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
+export const dynamic = 'force-dynamic';
 const commentSchema = z.object({
   content: z.string().min(1, "Comment cannot be empty"),
 })
@@ -44,7 +45,7 @@ export async function POST(
 
     const body = await req.json()
     const parsed = commentSchema.safeParse(body)
-    
+
     if (!parsed.success) {
       return new NextResponse("Invalid Data", { status: 400 })
     }

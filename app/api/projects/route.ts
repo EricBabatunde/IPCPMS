@@ -5,6 +5,7 @@ import { createProjectSchema } from "@/lib/validations/project"
 import { ProjectStatus } from "@prisma/client"
 import { getTasksForType, getDescriptionForType } from "@/lib/project-templates"
 
+export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   try {
     const session = await auth()

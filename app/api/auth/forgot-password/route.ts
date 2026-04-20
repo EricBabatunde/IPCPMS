@@ -4,6 +4,8 @@ import { forgotPasswordSchema } from "@/lib/validations/auth"
 import { sendPasswordResetEmail } from "@/lib/resend"
 import crypto from "crypto"
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()

@@ -154,6 +154,7 @@ export function TaskDetailSheet({ task, open, onOpenChange, onDeleted }: TaskDet
           old ? old.map((t: any) => (t.id === task.id ? { ...t, ...updated } : t)) : old // eslint-disable-line @typescript-eslint/no-explicit-any
       )
       queryClient.invalidateQueries({ queryKey: ["tasks", task.projectId] })
+      queryClient.invalidateQueries({ queryKey: ["projectAnalytics", task.projectId] })
     },
     onError: (err: Error) => {
       toast.error("Update failed", { description: err.message })
@@ -222,6 +223,7 @@ export function TaskDetailSheet({ task, open, onOpenChange, onDeleted }: TaskDet
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", task.projectId] })
+      queryClient.invalidateQueries({ queryKey: ["projectAnalytics", task.projectId] })
       onDeleted?.(task.id)
       onOpenChange(false)
       toast.success("Task deleted")

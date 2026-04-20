@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { updateTaskSchema } from "@/lib/validations/task"
 import { pusherServer } from "@/lib/pusher"
 
+
+export const dynamic = 'force-dynamic';
 // ─── Statuses that require the permission gate ─────────────────────────────────
 // Only task assignees and the project ADMIN may move a task to these statuses.
 const GATED_STATUSES = new Set(["IN_PROGRESS", "DONE"])
@@ -181,6 +183,8 @@ export async function PATCH(
       }
     }
 
+    await pusherServer.trigger(`private-project-${task.projectId}`, "task-updated", { taskId: task.id })
+
     return NextResponse.json(updatedTask)
   } catch (error) {
     console.error("[TASK_PATCH]", error)
@@ -215,6 +219,8 @@ export async function DELETE(
         detail: `Deleted task "${task.title}"`,
       },
     })
+
+    await pusherServer.trigger(`private-project-${task.projectId}`, "task-deleted", { taskId: task.id })
 
     return NextResponse.json({ success: true })
   } catch (error) {

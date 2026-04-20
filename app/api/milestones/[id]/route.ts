@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { updateMilestoneSchema } from "@/lib/validations/milestone"
+import { pusherServer } from "@/lib/pusher"
+
+export const dynamic = 'force-dynamic';
 
 export async function PATCH(
   req: Request,
@@ -41,6 +44,8 @@ export async function PATCH(
       })
     }
 
+    await pusherServer.trigger(`private-project-${milestone.projectId}`, "milestone-updated", { milestoneId: milestone.id })
+
     return NextResponse.json(updatedMilestone)
   } catch (error) {
     console.error("[MILESTONE_PATCH]", error)
@@ -75,6 +80,8 @@ export async function DELETE(
         detail: `Deleted milestone "${milestone.title}"`,
       },
     })
+
+    await pusherServer.trigger(`private-project-${milestone.projectId}`, "milestone-deleted", { milestoneId: milestone.id })
 
     return NextResponse.json({ success: true })
   } catch (error) {

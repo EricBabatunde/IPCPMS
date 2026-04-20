@@ -169,6 +169,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       // Release lock, then let the next query sync take over
       isMutatingRef.current = false
       queryClient.invalidateQueries({ queryKey: ["projects", projectId, "tasks"] })
+      queryClient.invalidateQueries({ queryKey: ["projectAnalytics", projectId] })
     },
   })
 

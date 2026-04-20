@@ -48,6 +48,7 @@ export function MilestoneList({ projectId }: { projectId: string }) {
 
   const invalidateCache = () => {
     queryClient.invalidateQueries({ queryKey: ["projects", projectId, "milestones"] })
+    queryClient.invalidateQueries({ queryKey: ["projectAnalytics", projectId] })
     setIsManageOpen(false)
   }
 
