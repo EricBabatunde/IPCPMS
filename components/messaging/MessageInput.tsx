@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Send, Paperclip, Loader2, X } from "lucide-react"
+import { Send, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -45,6 +45,7 @@ export function MessageInput({ channelId, isGroup, currentUserId, currentUserNam
       await queryClient.cancelQueries({ queryKey })
       const previousData = queryClient.getQueryData(queryKey)
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       queryClient.setQueryData(queryKey, (old: any) => {
         if (!old || !old.pages) return old
 

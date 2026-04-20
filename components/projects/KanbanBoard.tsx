@@ -270,6 +270,11 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
           onOpenChange={(open) => {
             if (!open) setSelectedTask(null)
           }}
+          onDeleted={(taskId) => {
+            setSelectedTask(null)
+            setTasks((prev) => prev.filter((t) => t.id !== taskId))
+            queryClient.invalidateQueries({ queryKey: ["projects", projectId, "tasks"] })
+          }}
         />
       )}
 

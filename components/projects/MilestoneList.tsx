@@ -37,6 +37,7 @@ export function MilestoneList({ projectId }: { projectId: string }) {
   const [editDescription, setEditDescription] = useState("")
   const [editDueDate, setEditDueDate] = useState("")
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const openManage = (milestone: any) => {
     setSelectedMilestone(milestone)
     setEditTitle(milestone.title)

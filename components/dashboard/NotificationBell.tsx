@@ -1,6 +1,4 @@
 "use client"
-
-import { useState } from "react"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
@@ -34,6 +32,7 @@ export function NotificationBell() {
     },
     onMutate: () => {
       // Optimistic bulk clear
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       queryClient.setQueryData(["notifications"], (old: any) => {
         if (!old) return old
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
