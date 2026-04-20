@@ -43,6 +43,12 @@ enum MilestoneStatus {
   MISSED
 }
 
+enum ProgressLogType {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -69,6 +75,7 @@ model User {
   sentGroupMessages     GroupMessage[]
   notifications         Notification[]
   activityLogs          ActivityLog[]
+  progressLogs          ProgressLog[]
 }
 
 model Account {
@@ -125,6 +132,7 @@ model Project {
   milestones   Milestone[]
   files        ProjectFile[]
   activityLogs ActivityLog[]
+  progressLogs ProgressLog[]
   group        Group?
 }
 
@@ -133,6 +141,7 @@ model ProjectMember {
   projectId String
   userId    String
   role      Role     @default(MEMBER)
+  points    Int      @default(0)
   joinedAt  DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -208,6 +217,20 @@ model ProjectFile {
   uploadedAt DateTime @default(now())
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ProgressLog {
+  id        String          @id @default(cuid())
+  content   String          @db.Text
+  type      ProgressLogType
+  userId    String
+  projectId String
+  createdAt DateTime        @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
 }
 
 // ──────────────── MESSAGING ────────────────
