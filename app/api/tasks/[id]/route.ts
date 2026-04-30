@@ -8,11 +8,12 @@ import { pusherServer } from "@/lib/pusher"
 export const dynamic = 'force-dynamic';
 // ─── Statuses that require the permission gate ─────────────────────────────────
 // Only task assignees and the project ADMIN may move a task to these statuses.
-const GATED_STATUSES = new Set(["IN_PROGRESS", "DONE"])
+const GATED_STATUSES = new Set(["IN_PROGRESS", "IN_REVIEW", "DONE"])
 
 // Points awarded per gated transition
 const STATUS_POINTS: Record<string, number> = {
   IN_PROGRESS: 5,
+  IN_REVIEW: 7,
   DONE: 10,
 }
 
@@ -44,12 +45,12 @@ export async function PATCH(
       return new NextResponse("Not Found", { status: 404 })
     }
 
-    // ── Permission gate for status changes to IN_PROGRESS or DONE ─────────────
+    // ── Universal permission gate for ANY status change ──────────────────────
+    // Only task assignees or the project ADMIN may move a task between columns.
     const newStatus = parsed.data.status
     const isStatusChange = newStatus !== undefined && newStatus !== task.status
 
-    if (isStatusChange && newStatus && GATED_STATUSES.has(newStatus)) {
-      // Check if the acting user is a project ADMIN
+    if (isStatusChange && newStatus) {
       const membership = await prisma.projectMember.findUnique({
         where: {
           projectId_userId: {
@@ -61,9 +62,22 @@ export async function PATCH(
 
       const isProjectAdmin = membership?.role === "ADMIN"
       const isAssignee = task.assignees.some((a) => a.id === session.user.id)
-      const isCreator = task.creatorId === session.user.id
+      const hasNoAssignees = task.assignees.length === 0
 
-      if (!isProjectAdmin && !isAssignee && !isCreator) {
+      // If the task has no assignees, only the Project Admin can move it
+      if (hasNoAssignees && !isProjectAdmin) {
+        return new NextResponse(
+          JSON.stringify({
+            error: "FORBIDDEN",
+            message:
+              "This task has no assignees. Only the project admin can move unassigned tasks. Please add assignees first.",
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        )
+      }
+
+      // Standard gate: must be admin or assignee
+      if (!hasNoAssignees && !isProjectAdmin && !isAssignee) {
         return new NextResponse(
           JSON.stringify({
             error: "FORBIDDEN",
@@ -184,6 +198,40 @@ export async function PATCH(
     }
 
     await pusherServer.trigger(`private-project-${task.projectId}`, "task-updated", { taskId: task.id })
+
+    // ── Dynamic project status automation ─────────────────────────────────────
+    // Recompute project status based on current task + milestone distribution.
+    if (statusChanged) {
+      const [allProjectTasks, allMilestones] = await Promise.all([
+        prisma.task.findMany({
+          where: { projectId: task.projectId },
+          select: { status: true },
+        }),
+        prisma.milestone.findMany({
+          where: { projectId: task.projectId },
+          select: { status: true },
+        }),
+      ])
+
+      let computedStatus: "PLANNING" | "ACTIVE" | "COMPLETED" = "PLANNING"
+
+      const allTasksDone = allProjectTasks.length > 0 && allProjectTasks.every((t) => t.status === "DONE")
+      const allMilestonesAchieved = allMilestones.length === 0 || allMilestones.every((m) => m.status === "ACHIEVED")
+      const hasActiveWork = allProjectTasks.some(
+        (t) => t.status === "IN_PROGRESS" || t.status === "IN_REVIEW"
+      )
+
+      if (allTasksDone && allMilestonesAchieved) {
+        computedStatus = "COMPLETED"
+      } else if (hasActiveWork) {
+        computedStatus = "ACTIVE"
+      }
+
+      await prisma.project.update({
+        where: { id: task.projectId },
+        data: { status: computedStatus },
+      })
+    }
 
     return NextResponse.json(updatedTask)
   } catch (error) {

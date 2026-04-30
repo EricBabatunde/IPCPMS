@@ -93,12 +93,20 @@ export async function GET(
       .map(([name, value]) => ({ name, value, fill: milestoneStatusColors[name] ?? "#94a3b8" }))
       .filter((d) => d.value > 0)
 
-    // ── Productivity (weighted points) ────────────────────────────────────────
-    const productivity = productivityMembers.map((m) => ({
-      userId: m.userId,
-      userName: m.user.name,
-      points: m.points,
-    }))
+    // ── Productivity (weighted points) — Admin always first ────────────────────
+    const productivity = productivityMembers
+      .map((m) => ({
+        userId: m.userId,
+        userName: m.user.name,
+        points: m.points,
+        role: m.role,
+      }))
+      .sort((a, b) => {
+        // Admins first, then by points descending
+        if (a.role === "ADMIN" && b.role !== "ADMIN") return -1
+        if (a.role !== "ADMIN" && b.role === "ADMIN") return 1
+        return b.points - a.points
+      })
 
     // ── Gantt items: tasks + milestones with dueDate ──────────────────────────
     const overdueTaskIds  = new Set(overdueTasks.map((t) => t.id))

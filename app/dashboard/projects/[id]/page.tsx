@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { getPusherClient } from "@/lib/pusher-client"
 import { useParams } from "next/navigation"
 import {
-  LayoutDashboard, ListTodo, Map, FolderOpen, Loader2, GraduationCap, BookOpen,
+  LayoutDashboard, ListTodo, Map, FolderOpen, Loader2, GraduationCap, BookOpen, ShieldCheck,
 } from "lucide-react"
 import {
   PieChart, Pie, Cell, Tooltip as ReTooltip, Legend, ResponsiveContainer,
@@ -22,6 +22,7 @@ import { ProgressLog } from "@/components/projects/ProgressLog"
 import { MiniGantt, GanttItem } from "@/components/projects/MiniGantt"
 import { TaskDetailSheet } from "@/components/projects/TaskDetailSheet"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 // ─── Health bar segment config ─────────────────────────────────────────────────
@@ -292,31 +293,59 @@ export default function ProjectDetailPage() {
           {analytics?.productivity && analytics.productivity.length > 0 && (
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-5 shadow-sm">
               <h3 className="text-sm font-semibold mb-1 text-slate-800 dark:text-slate-200">Productivity Points</h3>
-              <p className="text-xs text-muted-foreground mb-4">Weighted score: +10 task done · +5 started · +1 log entry</p>
+              <p className="text-xs text-muted-foreground mb-4">Weighted score: +10 task done · +7 in review · +5 started · +1 log entry</p>
               <div className="space-y-2">
-                {analytics.productivity.map((member: any, i: number) => {
-                  const maxPts = analytics.productivity[0]?.points || 1
-                  const pct = maxPts > 0 ? (member.points / maxPts) * 100 : 0
-                  return (
-                    <div key={member.userId} className="flex items-center gap-3">
-                      <span className="text-xs w-5 text-center font-semibold text-slate-500">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300 w-32 truncate">
-                        {member.userName}
-                      </span>
-                      <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full bg-emerald-500 transition-all duration-500"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 w-14 text-right">
-                        {member.points} pts
-                      </span>
-                    </div>
-                  )
-                })}
+                <TooltipProvider delayDuration={200}>
+                {(() => {
+                    const maxPts = Math.max(...analytics.productivity.map((m: any) => m.points), 1)
+                    return analytics.productivity.map((member: any, i: number) => {
+                      const pct = (member.points / maxPts) * 100
+                      const isAdmin = member.role === "ADMIN"
+                      return (
+                        <div key={member.userId} className="flex items-center gap-3">
+                          <span className={cn(
+                            "text-xs w-5 h-5 flex items-center justify-center rounded-full font-semibold",
+                            isAdmin
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 ring-2 ring-emerald-500"
+                              : "text-slate-500"
+                          )}>
+                            {i + 1}
+                          </span>
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-300 w-32 truncate flex items-center gap-1.5">
+                            {member.userName}
+                            {isAdmin && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                  <p className="text-xs">Project Admin</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </span>
+                          <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-2">
+                            <div
+                              className={cn(
+                                "h-2 rounded-full transition-all duration-500",
+                                isAdmin ? "bg-emerald-500" : "bg-blue-500"
+                              )}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className={cn(
+                            "text-xs font-semibold w-14 text-right",
+                            isAdmin
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-blue-600 dark:text-blue-400"
+                          )}>
+                            {member.points} pts
+                          </span>
+                        </div>
+                      )
+                    })
+                  })()}
+                </TooltipProvider>
               </div>
             </div>
           )}

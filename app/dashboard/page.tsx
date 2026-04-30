@@ -44,8 +44,8 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard title="Total Projects" value={kpis?.totalProjects || 0} icon={FolderKanban} color="blue" />
           <KPICard title="Total Tasks" value={kpis?.totalTasks || 0} icon={CheckSquare} color="default" />
-          <KPICard title="Completed" value={kpis?.completedTasks || 0} icon={CheckCircle} color="green" />
-          <KPICard title="Overdue" value={kpis?.overdueTasks || 0} icon={AlertCircle} color="red" />
+          <KPICard title="Completed Tasks" value={kpis?.completedTasks || 0} icon={CheckCircle} color="green" />
+          <KPICard title="Overdue Tasks" value={kpis?.overdueTasks || 0} icon={AlertCircle} color="red" />
         </div>
       )}
 

@@ -74,12 +74,15 @@ export async function GET(req: Request) {
           }
         })
 
-        // Tasks moved to IN_PROGRESS — sourced from ActivityLog
+        // Tasks moved to IN_PROGRESS or IN_REVIEW — sourced from ActivityLog
         const inProgressLogs = await prisma.activityLog.findMany({
           where: {
             projectId: { in: targetProjectIds },
             action: "updated_task",
-            detail: { contains: "to IN_PROGRESS" },
+            OR: [
+              { detail: { contains: "to IN_PROGRESS" } },
+              { detail: { contains: "to IN_REVIEW" } },
+            ],
             createdAt: { gte: subDays(new Date(), 14) },
           },
           select: { createdAt: true },

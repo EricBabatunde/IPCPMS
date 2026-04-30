@@ -8,6 +8,7 @@ import { TaskStatus } from "@prisma/client"
 import { KanbanColumn } from "./KanbanColumn"
 import { TaskDetailSheet } from "./TaskDetailSheet"
 import { CreateTaskModal } from "./CreateTaskModal"
+import { toast } from "sonner"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,7 +119,15 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       })
-      if (!res.ok) throw new Error("Failed to update task")
+      if (!res.ok) {
+        const text = await res.text()
+        let message = "Failed to update task"
+        try {
+          const parsed = JSON.parse(text)
+          if (parsed.message) message = parsed.message
+        } catch { /* use default */ }
+        throw new Error(message)
+      }
       return res.json() as Promise<KanbanTask>
     },
 
@@ -145,7 +154,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       return { previousTasks }
     },
 
-    onError: (_err, _vars, context) => {
+    onError: (err, _vars, context) => {
       // Roll back on failure
       if (context?.previousTasks) {
         queryClient.setQueryData(
@@ -156,6 +165,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
           [...context.previousTasks].sort((a, b) => a.position - b.position)
         )
       }
+      toast.error("Permission denied", { description: err.message })
     },
 
     onSuccess: (updatedTask) => {
@@ -170,6 +180,7 @@ export function KanbanBoard({ projectId }: { projectId: string }) {
       isMutatingRef.current = false
       queryClient.invalidateQueries({ queryKey: ["projects", projectId, "tasks"] })
       queryClient.invalidateQueries({ queryKey: ["projectAnalytics", projectId] })
+      queryClient.invalidateQueries({ queryKey: ["projects", projectId] })
     },
   })
 

@@ -63,7 +63,8 @@
               "title": "seed-task"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -226,12 +227,12 @@
       "bases:Create new base": false
     }
   },
-  "active": "d12f403cc43bf738",
+  "active": "5413f5d555e7dedb",
   "lastOpenFiles": [
+    "Vercel Deployment.md",
     "GitHub manual push.md",
     "seed-task.md",
     "Uploadthing.md",
-    "Vercel Deployment.md",
     "Welcome.md"
   ]
 }
